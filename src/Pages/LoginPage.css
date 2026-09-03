@@ -1,0 +1,322 @@
+:root {
+  --login-blue: #1455d9;
+  --login-blue-dark: #0e3e9e;
+  --login-ink: #18243d;
+  --login-muted: #718096;
+  --login-line: #dfe5ee;
+  --login-orange: #ff6b00;
+}
+
+.pea-login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.95fr) minmax(480px, 1.05fr);
+  background: #f7f9fc;
+  color: var(--login-ink);
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.pea-login-visual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 42px clamp(36px, 6vw, 92px);
+  color: #fff;
+  background: linear-gradient(145deg, #092d79 0%, #1455d9 54%, #1688dc 100%);
+}
+
+.pea-login-visual::after {
+  position: absolute;
+  right: -15%;
+  bottom: -19%;
+  width: 75%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 50%;
+  content: '';
+}
+
+.pea-login-brand,
+.pea-login-mobile-brand {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.pea-login-visual-content {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+  margin: auto 0 30px;
+}
+
+.pea-login-kicker {
+  display: block;
+  margin-bottom: 15px;
+  color: var(--login-orange);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.pea-login-visual h1 {
+  max-width: 500px;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.4rem, 4vw, 4.1rem);
+  font-weight: 400;
+  line-height: 1.06;
+}
+
+.pea-login-visual-content p {
+  max-width: 410px;
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.pea-login-art {
+  position: absolute;
+  right: 4%;
+  bottom: 13%;
+  width: min(340px, 52%);
+  opacity: 0.72;
+  transform: rotate(-9deg);
+}
+
+.pea-login-visual-footer {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.pea-login-visual-footer span {
+  padding: 0 8px;
+  color: var(--login-orange);
+}
+
+.pea-login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 48px 8%;
+  background: #fff;
+}
+
+.pea-login-form-wrap {
+  width: min(100%, 430px);
+}
+
+.pea-login-mobile-brand {
+  display: none;
+  margin-bottom: 54px;
+  color: var(--login-blue);
+}
+
+.pea-login-heading {
+  margin-bottom: 36px;
+}
+
+.pea-login-heading .pea-login-kicker {
+  color: var(--login-blue);
+}
+
+.pea-login-heading h2 {
+  margin: 0 0 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.3rem, 4vw, 3.3rem);
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.pea-login-heading p {
+  margin: 0;
+  color: var(--login-muted);
+  font-size: 0.95rem;
+}
+
+.pea-login-form {
+  display: grid;
+  gap: 10px;
+}
+
+.pea-login-form label,
+.pea-login-password-label label {
+  color: #354158;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pea-login-form input[type='email'],
+.pea-login-form input[type='password'],
+.pea-login-form input[type='text'] {
+  width: 100%;
+  height: 52px;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  border: 1px solid var(--login-line);
+  border-radius: 4px;
+  outline: none;
+  color: var(--login-ink);
+  font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.pea-login-form input:focus {
+  border-color: var(--login-blue);
+  box-shadow: 0 0 0 3px rgba(20, 85, 217, 0.12);
+}
+
+.pea-login-form input::placeholder {
+  color: #a8b2c2;
+}
+
+.pea-login-password-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pea-login-password-label a,
+.pea-login-signup a,
+.pea-login-legal a {
+  color: var(--login-blue);
+  text-decoration: none;
+}
+
+.pea-login-password-label a {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pea-login-password-field {
+  position: relative;
+}
+
+.pea-login-password-field input {
+  padding-right: 82px !important;
+}
+
+.pea-login-show-password {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 52px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--login-blue);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pea-login-remember {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 2px 0 15px;
+  cursor: pointer;
+  color: var(--login-muted) !important;
+  font-weight: 400 !important;
+}
+
+.pea-login-remember input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--login-blue);
+}
+
+.pea-login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 54px;
+  padding: 0 18px 0 22px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--login-orange);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.pea-login-submit:hover:not(:disabled) {
+  background: #e95e00;
+  transform: translateY(-1px);
+}
+
+.pea-login-submit span {
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.pea-login-submit:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.pea-login-signup {
+  margin: 27px 0 0;
+  color: var(--login-muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.pea-login-signup a {
+  font-weight: 700;
+}
+
+.pea-login-legal {
+  margin: 74px auto 0;
+  color: #a2adbd;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.pea-login-legal a {
+  color: #7285a6;
+}
+
+@media (max-width: 800px) {
+  .pea-login-page {
+    display: block;
+  }
+
+  .pea-login-visual {
+    display: none;
+  }
+
+  .pea-login-panel {
+    min-height: 100vh;
+    align-items: flex-start;
+    padding: 34px 24px;
+  }
+
+  .pea-login-mobile-brand {
+    display: block;
+  }
+
+  .pea-login-heading {
+    margin-bottom: 30px;
+  }
+
+  .pea-login-legal {
+    margin-top: 55px;
+  }
+}

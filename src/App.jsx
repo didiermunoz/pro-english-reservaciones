@@ -1,6 +1,6 @@
 import React from 'react'
-import HomePage from './pages/HomePage.jsx'
+import LoginPage from './Pages/LoginPage.jsx'
 
 export default function App() {
-  return <HomePage />
+  return <LoginPage />
 }

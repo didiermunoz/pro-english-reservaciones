@@ -3,7 +3,7 @@ import './HomePage.css'
 
 export default function HomePage() {
   return (
-    <div className="pea-landing">
+    <div className="pea-landing"> 
       <header className="pea-navbar">
         <div className="pea-navbar-inner">
           <div className="pea-logo">proenglish</div>

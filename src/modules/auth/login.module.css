@@ -1,0 +1,174 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #ffffff;
+}
+
+.brandPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(2rem, 6vw, 5rem);
+  background: #1b3a6b;
+  color: #ffffff;
+}
+
+.brand {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brandContent {
+  max-width: 34rem;
+}
+
+.brandContent h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2.5rem, 5vw, 4.75rem);
+  line-height: 1.05;
+}
+
+.brandContent p {
+  max-width: 28rem;
+  margin: 0;
+  color: #dce8f8;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.brandFooter {
+  color: #b9cbe4;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2rem, 6vw, 5rem);
+  background: #ffffff;
+}
+
+.formWrapper {
+  width: min(100%, 28rem);
+}
+
+.mobileBrand {
+  display: none;
+  margin-bottom: 3rem;
+  color: #1b3a6b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heading {
+  margin-bottom: 2rem;
+}
+
+.heading h2 {
+  margin: 0 0 0.75rem;
+  color: #182536;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+}
+
+.heading p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.5rem;
+  color: #182536;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.form input {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
+  color: #182536;
+  font: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.form input:focus {
+  border-color: #1b3a6b;
+  box-shadow: 0 0 0 3px rgba(27, 58, 107, 0.14);
+}
+
+.submitButton {
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: #c81e3a;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.submitButton:hover {
+  background: #a91830;
+  transform: translateY(-1px);
+}
+
+.submitButton:focus-visible {
+  outline: 3px solid rgba(200, 30, 58, 0.3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .page {
+    display: block;
+  }
+
+  .brandPanel {
+    min-height: 15rem;
+    padding: 2rem;
+  }
+
+  .brandContent {
+    margin-top: 3rem;
+  }
+
+  .brandContent h1 {
+    font-size: 2.5rem;
+  }
+
+  .brandFooter {
+    display: none;
+  }
+
+  .formPanel {
+    min-height: calc(100vh - 15rem);
+    padding: 2.5rem 2rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .brandPanel,
+  .formPanel {
+    padding-right: 1.25rem;
+    padding-left: 1.25rem;
+  }
+}

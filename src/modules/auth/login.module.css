@@ -14,6 +14,25 @@
   color: #ffffff;
 }
 
+.logo {
+  display: block;
+  width: 200px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  box-shadow: 0 0.75rem 2rem rgba(8, 29, 61, 0.22);
+  height: auto;
+  cursor: pointer;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.logo:hover {
+  transform: scale(1.10); /* Agranda el logo un 10%*/
+  opacity: .9;           
+}
+
 .brand {
   font-size: 1rem;
   font-weight: 700;
@@ -41,7 +60,7 @@
 
 .brandFooter {
   color: #b9cbe4;
-  font-size: 0.75rem;
+  font-size: 1rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -75,7 +94,7 @@
 .heading h2 {
   margin: 0 0 0.75rem;
   color: #182536;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(4rem, 4vw, 3rem);
   line-height: 1.1;
 }
 
@@ -94,7 +113,7 @@
   display: grid;
   gap: 0.5rem;
   color: #182536;
-  font-size: 0.9rem;
+  font-size: 2rem;
   font-weight: 600;
 }
 
@@ -116,8 +135,8 @@
 }
 
 .submitButton {
-  min-height: 3.25rem;
-  border: 0;
+  min-height: 4.25rem;
+  border: 1;
   border-radius: 0.35rem;
   background: #c81e3a;
   color: #ffffff;
@@ -145,6 +164,10 @@
   .brandPanel {
     min-height: 15rem;
     padding: 2rem;
+  }
+
+  .logo {
+    width: 8rem;
   }
 
   .brandContent {

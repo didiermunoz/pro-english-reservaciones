@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from './login.module.css'
+import logopro from '../../assets/logo_og.png'
 
 export default function LoginPage() {
   const [matricula, setMatricula] = useState('')
@@ -13,6 +14,7 @@ export default function LoginPage() {
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel} aria-label="Pro English Academy">
+        <img className={styles.logo} src={logopro} alt="Pro English Academy" />
         <div className={styles.brand}>Pro English Academy</div>
         <div className={styles.brandContent}>
           <h1>Aprende a tu ritmo.</h1>

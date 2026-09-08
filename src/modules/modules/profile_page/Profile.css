@@ -1,0 +1,263 @@
+.profile-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+/* Selector de Demo de Alumnos */
+.demo-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.demo-switcher small {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.demo-switcher button {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.demo-switcher button.active {
+  background: #1e3a8a;
+  color: #ffffff;
+  border-color: #1e3a8a;
+}
+
+/* Header */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #1e3a8a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.profile-info h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.profile-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge-id, .badge-level {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.badge-id {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-level {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* Métricas */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: #ffffff;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-card.primary {
+  border-left: 4px solid #1e3a8a;
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0.25rem 0;
+}
+
+.stat-value span {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.stat-subtext {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #1e3a8a;
+}
+
+/* Layout Grid */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.main-content h3, .side-card h3 {
+  font-size: 1.05rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+/* Clases Agendadas */
+.classes-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.class-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.class-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #1e3a8a;
+}
+
+.class-info p {
+  margin: 0.2rem 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #fef2f2;
+}
+
+/* Sidebar e Historial Simple */
+.side-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.history-simple-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-simple-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.history-simple-item:last-child {
+  border-bottom: none;
+}
+
+.history-simple-item strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.history-simple-item small {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.empty-card {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  padding: 1.5rem;
+  border-radius: 10px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+}

@@ -18,7 +18,7 @@ export default function LoginPage() {
         <div className={styles.brandHeader}>
           <img className={styles.logo} src={logopro} alt="Pro English Academy" />
         </div>
-
+      
         <div className={styles.brandContent}>
           <p className={styles.eyebrow}>South Branch</p>
           <h1>Accede ahora para reservar</h1>

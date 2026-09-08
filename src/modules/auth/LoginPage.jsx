@@ -5,28 +5,37 @@ import logopro from '../../assets/logo_og.png'
 export default function LoginPage() {
   const [matricula, setMatricula] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
 
   function handleSubmit(event) {
     event.preventDefault()
-    console.log({ matricula, password })
+    console.log({ matricula, password, rememberMe })
   }
 
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel} aria-label="Pro English Academy">
-        <img className={styles.logo} src={logopro} alt="Pro English Academy" />
-        <div className={styles.brand}>Pro English Academy</div>
-        <div className={styles.brandContent}>
-          <h1>Aprende a tu ritmo.</h1>
-          <p>Accede a tu cuenta para reservar tus clases de inglés.</p>
+        <div className={styles.brandHeader}>
+          <img className={styles.logo} src={logopro} alt="Pro English Academy" />
         </div>
-        <div className={styles.brandFooter}>Pro English Academy South</div>
+
+        <div className={styles.brandContent}>
+          <p className={styles.eyebrow}>South Branch</p>
+          <h1>Accede ahora para reservar</h1>
+        </div>
+
+        <div className={styles.brandFooter}>
+          <span>Aprende inglés</span>
+          <span>con confianza</span>
+        </div>
       </section>
 
       <section className={styles.formPanel}>
         <div className={styles.formWrapper}>
           <div className={styles.mobileBrand}>Pro English Academy</div>
+
           <header className={styles.heading}>
+            <p className={styles.kicker}>Bienvenido</p>
             <h2>Inicia sesión</h2>
             <p>Ingresa tus datos para continuar.</p>
           </header>
@@ -59,6 +68,18 @@ export default function LoginPage() {
                 required
               />
             </label>
+
+            <div className={styles.rememberRow}>
+              <label className={styles.checkboxLabel} htmlFor="rememberMe">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                />
+                <span>Recordarme</span>
+              </label>
+            </div>
 
             <button className={styles.submitButton} type="submit">
               Iniciar sesión

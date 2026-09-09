@@ -1,4 +1,6 @@
-export default function ContractHero({ selectedCount, studentHours, modality, onModalityChange }) {
+import CurrentDateTime from './CurrentDateTime'
+
+export default function ContractHero({ selectedCount, studentHours, modality, onModalityChange, simulatedDay, onSimulatedDayChange }) {
   const remainingHours = studentHours - selectedCount
 
   return (
@@ -6,7 +8,7 @@ export default function ContractHero({ selectedCount, studentHours, modality, on
       <div className="hero-copy">
         <span className="eyebrow">PORTAL DEL ESTUDIANTE / AGENDA SEMANAL</span>
         <h1 id="welcome-title">Bienvenido de nuevo, Didier</h1>
-        <p>Selecciona tus horas de la semana. Recuerda que tus límites y modalidad están definidos por tu contrato físico.</p>
+        <p>Selecciona tus próximas clases. El sistema habilita únicamente los días permitidos según la fecha y hora actuales.</p>
         <div className="hero-visual" aria-hidden="true"><span>ENGLISH</span><strong>LEARNING</strong><i>✦</i></div>
       </div>
       <div className="contract-details">
@@ -17,6 +19,7 @@ export default function ContractHero({ selectedCount, studentHours, modality, on
           <div className="contract-item"><span>Siguiente Clase Requerida</span><strong className="lesson-badge">Lección 4: Past Continuous</strong></div>
         </div>
       </div>
+      <CurrentDateTime simulatedDay={simulatedDay} onSimulatedDayChange={onSimulatedDayChange} />
       <div className="hours-meter">
         <div className="meter-copy"><span>Horas semanales asignadas</span><strong><b>{selectedCount}</b> de {studentHours} Horas</strong><small>{remainingHours === 0 ? 'Contrato semanal completo' : `Te restan ${remainingHours} horas por asignar`}</small></div>
         <div className="progress-ring" style={{ '--progress': `${(selectedCount / studentHours) * 100}%` }}><div><strong>{selectedCount}/{studentHours}</strong><span>hrs</span></div></div>

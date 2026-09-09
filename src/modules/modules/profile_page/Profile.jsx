@@ -7,15 +7,11 @@ export const Profile = ({ onNavigate }) => {
       id: '1234',
       name: 'Carlos Mendoza',
       level: 'I - Intermediate',
-      availableHours: 8,
-      totalHours: 12,
     },
     {
       id: '5678',
       name: 'Ana Sofia Gómez',
       level: 'B - Beginner',
-      availableHours: 4,
-      totalHours: 10,
     }
   ]);
 
@@ -43,43 +39,13 @@ export const Profile = ({ onNavigate }) => {
     {
       id: 101,
       title: 'Clase Presencial',
-      date: '02 de Septiembre, 2026',
+      date: '2026-09-02',
+      formattedDate: '02 de Septiembre, 2026',
+      time: '16:00 - 17:00',
     },
   ]);
 
-  // Límite fijado por la administración
   const MAX_WEEKLY_HOURS = 6;
-
-  // Función para agendar únicamente para el día de mañana
-  const handleBookTomorrowClass = () => {
-    // 1. Validar límite de 6 horas semanales
-    if (upcomingClasses.length >= MAX_WEEKLY_HOURS) {
-      alert(`Límite alcanzado: Solo puedes agendar un máximo de ${MAX_WEEKLY_HOURS} horas a la semana.`);
-      return;
-    }
-
-    // 2. Calcular exactamente la fecha de mañana (1 día después)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const dateStr = tomorrow.toISOString().split('T')[0];
-    const formattedDate = tomorrow.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
-    const newClass = {
-      id: Date.now(),
-      title: 'Clase Presencial',
-      date: dateStr,
-      formattedDate: formattedDate,
-      time: '10:00 - 11:00',
-    };
-
-    setUpcomingClasses((prev) => [...prev, newClass]);
-    alert(`Clase agendada para mañana (${formattedDate}).`);
-  };
 
   const handleCancelClass = (classItem) => {
     const classDate = new Date(classItem.date);
@@ -102,18 +68,21 @@ export const Profile = ({ onNavigate }) => {
     }
   };
 
+  const weeklyHoursUsed = upcomingClasses.length;
+  const weeklyPercent = Math.min((weeklyHoursUsed / MAX_WEEKLY_HOURS) * 100, 100);
+
   return (
     <div className="profile-container">
       <div className="demo-switcher">
         <small>Cambiar alumno de prueba: </small>
-        <button 
-          className={studentIndex === 0 ? 'active' : ''} 
+        <button
+          className={studentIndex === 0 ? 'active' : ''}
           onClick={() => setStudentIndex(0)}
         >
           Alumno 1 (1234)
         </button>
-        <button 
-          className={studentIndex === 1 ? 'active' : ''} 
+        <button
+          className={studentIndex === 1 ? 'active' : ''}
           onClick={() => setStudentIndex(1)}
         >
           Alumno 2 (5678)
@@ -133,26 +102,26 @@ export const Profile = ({ onNavigate }) => {
         </div>
       </header>
 
-      <section className="stats-grid">
-        <div className="stat-card primary">
-          <h3>Horas Disponibles (Mes)</h3>
-          <div className="stat-value">{currentStudent.availableHours} <span>hrs</span></div>
-          <p className="stat-subtext">De un total de {currentStudent.totalHours} hrs este mes</p>
+      <section className="stats-grid stats-grid-single">
+        <div className="stat-card stat-card-highlight">
+          <div className="stat-header">
+            <h3>Límite Semanal</h3>
+            <span className="stat-chip">Escuela</span>
+          </div>
+          <div className="stat-value">
+            {weeklyHoursUsed} <span>/ {MAX_WEEKLY_HOURS} hrs</span>
+          </div>
+          <p className="stat-subtext">
+            {weeklyHoursUsed >= MAX_WEEKLY_HOURS
+              ? 'Alcanzaste tu límite de esta semana'
+              : `Puedes agendar ${MAX_WEEKLY_HOURS - weeklyHoursUsed} hrs más esta semana`}
+          </p>
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
-              style={{ width: `${(currentStudent.availableHours / currentStudent.totalHours) * 100}%` }}
+            <div
+              className={`progress-fill ${weeklyPercent >= 100 ? 'warning' : ''}`}
+              style={{ width: `${weeklyPercent}%` }}
             ></div>
           </div>
-        </div>
-
-        {/* Tarjeta ajustada a la regla de 6 horas semanales */}
-        <div className="stat-card">
-          <h3>Límite Semanal</h3>
-          <div className="stat-value">
-            {upcomingClasses.length} <span>/ {MAX_WEEKLY_HOURS} hrs</span>
-          </div>
-          <p className="stat-subtext">Máximo permitido por semana</p>
         </div>
       </section>
 
@@ -160,13 +129,10 @@ export const Profile = ({ onNavigate }) => {
         <section className="main-content">
           <div className="section-header-actions">
             <h3>Próximas Clases</h3>
-            <button className="btn-primary" onClick={handleBookTomorrowClass}>
-              + Agendar para mañana
-            </button>
           </div>
 
           <p className="notice-banner">
-            📌 Solo se puede agendar para el día de mañana con un limite de {MAX_WEEKLY_HOURS} hrs/semana.
+            📌 Puedes cancelar una clase hasta un día antes de la fecha programada. Para agendar nuevas clases, ve a la sección de inicio.
           </p>
 
           {upcomingClasses.length === 0 ? (
@@ -183,7 +149,7 @@ export const Profile = ({ onNavigate }) => {
                     <p>⏰ {item.time}</p>
                   </div>
                   <div className="class-actions">
-                    <button 
+                    <button
                       className="btn-cancel"
                       onClick={() => handleCancelClass(item)}
                     >
@@ -199,16 +165,18 @@ export const Profile = ({ onNavigate }) => {
         <aside className="sidebar-content">
           <div className="side-card">
             <h3>Historial de Clases</h3>
-            <ul className="history-simple-list">
-              {pastClasses.map((item) => (
-                <li key={item.id} className="history-simple-item">
-                  <div>
+            {pastClasses.length === 0 ? (
+              <p className="stat-subtext">Aún no tienes clases registradas en tu historial.</p>
+            ) : (
+              <ul className="history-simple-list">
+                {pastClasses.map((item) => (
+                  <li key={item.id} className="history-simple-item">
                     <strong>{item.title}</strong>
-                    <small>📅 {item.date}</small>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <small>📅 {item.formattedDate} · ⏰ {item.time}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </aside>
       </div>

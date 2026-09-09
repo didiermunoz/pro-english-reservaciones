@@ -86,7 +86,9 @@ a { color: inherit; }
 .guide-step b { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; color: #fff; background: var(--navy); font-size: .8rem; }
 .guide-arrow { color: var(--coral); font-size: 1.25rem; font-weight: 900; }
 .schedule-scroll { overflow-x: auto; padding: 2px 2px 12px; }
-.schedule-grid { display: grid; grid-template-columns: minmax(150px, .85fr) repeat(6, minmax(0, 1fr)); gap: 14px; min-width: 0; }
+.schedule-grid { display: grid; grid-template-columns: minmax(180px, .75fr) repeat(2, minmax(260px, 1fr)); gap: 18px; width: min(100%, 1180px); min-width: 0; margin: 0 auto; }
+.schedule-grid.days-1 { grid-template-columns: minmax(180px, .75fr) minmax(300px, 1fr); width: min(100%, 820px); }
+.schedule-grid.days-3 { grid-template-columns: minmax(165px, .7fr) repeat(3, minmax(220px, 1fr)); width: min(100%, 1380px); }
 .time-rail, .day-column { border: 2px solid var(--line); border-radius: 20px; background: #fff; box-shadow: 0 8px 20px rgba(18, 58, 99, .06); }
 .rail-heading, .day-heading { display: flex; align-items: center; min-height: 64px; padding: 14px; border-bottom: 1px solid var(--line); color: var(--navy); font-size: .9rem; font-weight: 900; }
 .rail-heading { background: var(--peach); border-radius: 18px 18px 0 0; }
@@ -159,5 +161,5 @@ a { color: inherit; }
 .footer-bottom { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid var(--line); font-size: .66rem; }
 
 @keyframes reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@media (max-width: 1180px) { .student-navbar { flex-wrap: wrap; } .student-nav { order: 3; flex-basis: 100%; overflow-x: auto; } .contract-hero { grid-template-columns: 1fr; } .contract-details { grid-column: 1; grid-row: auto; } .schedule-grid { min-width: 520px; } .progress-calendar { grid-template-columns: repeat(7, 130px); } }
+@media (max-width: 1180px) { .student-navbar { flex-wrap: wrap; } .student-nav { order: 3; flex-basis: 100%; overflow-x: auto; } .contract-hero { grid-template-columns: 1fr; } .contract-details { grid-column: 1; grid-row: auto; } .schedule-grid, .schedule-grid.days-1, .schedule-grid.days-3 { width: max-content; min-width: 820px; } .progress-calendar { grid-template-columns: repeat(7, 130px); } }
 @media (max-width: 700px) { .student-main { width: calc(100% - 24px); padding-bottom: 170px; } .student-navbar { border-radius: 0 0 34px 34px; } .student-account { margin-left: auto; } .student-identity, .logout-button { display: none; } .contract-grid { grid-template-columns: 1fr; } .schedule-header, .action-bar { align-items: stretch; flex-direction: column; } .schedule-guide { align-items: flex-start; flex-direction: column; gap: 9px; } .guide-arrow { display: none; } .hours-meter { align-items: flex-start; } .date-time-panel { align-items: flex-start; flex-direction: column; } .live-clock { align-items: flex-start; flex-direction: column; gap: 5px; } .schedule-rule { white-space: normal; } .action-bar { gap: 12px; padding: 14px 16px; } .selection-summary { align-items: flex-start; gap: 12px; flex-direction: column; } .selection-list { max-height: 45px; overflow: hidden; } .confirm-button { width: 100%; } .week-progress { padding: 18px; } .progress-heading { align-items: flex-start; flex-direction: column; } .school-footer { grid-template-columns: 1fr 1fr; padding-bottom: 190px; } .footer-brand, .footer-bottom { grid-column: 1 / -1; } }

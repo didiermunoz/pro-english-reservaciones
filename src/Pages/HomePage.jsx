@@ -1,70 +1,108 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
+import ContractHero from '../Components/ContractHero'
+import SchoolFooter from '../Components/SchoolFooter'
+import ScheduleSection from '../Components/ScheduleSection'
+import SelectionActionBar from '../Components/SelectionActionBar'
+import StudentNavbar from '../Components/StudentNavbar'
+import WeekProgress from '../Components/WeekProgress'
+import { formatDate, getMonday, getSelectableDates, toDateKey, weekDayNames } from '../Services/scheduleUtils'
 import './HomePage.css'
 
-export default function HomePage() {
-  return (
-    <div className="pea-landing"> 
-      <header className="pea-navbar">
-        <div className="pea-navbar-inner">
-          <div className="pea-logo">proenglish</div>
-          <nav className="pea-navlinks">
-            <a href="#">SERVICIOS</a>
-            <a href="#">OFERTAS</a>
-            <a href="#">¿ERES PROFESOR?</a>
-            <a className="pea-enter" href="#">ENTRAR</a>
-          </nav>
-        </div>
-      </header>
+const studentHours = 6
+const scheduleHours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+function formatHour(hour) {
+  return `${String(hour).padStart(2, '0')}:00`
+}
 
-      <section className="pea-hero">
-        <div className="pea-hero-overlay">
-          <div className="pea-hero-content">
-            <h1>Encuentra las mejores Clases de Inglés con Profesores Nativos</h1>
-            <hr className="hero-divider" />
+function createSlots(date, startHour, endHour) {
+  return Array.from({ length: endHour - startHour }, (_, index) => {
+    const hour = startHour + index
+    return { id: `${toDateKey(date)}-${hour}`, day: weekDayNames[date.getDay()], hour, time: formatHour(hour) }
+  })
+}
 
-            <div className="quote-card">
-              <div className="quote-left">
-                <label className="label">Indica la cantidad de horas semanales:</label>
-                <div className="hours-input">
-                  <input type="number" min="1" max="40" defaultValue="2" />
-                  <span className="hours-suffix">hrs/sem</span>
-                </div>
-              </div>
-              <div className="quote-right">
-                <div className="price-label">Tu cotización es de:</div>
-                <div className="price-value"><span className="currency">$</span> 25.00</div>
-                <button className="btn-orange">RESERVAR MI CLASE</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+export default function HomePage({ onNavigate, onLogout, onReserve, reservations, user }) {
+  const [selectedSlots, setSelectedSlots] = useState([])
+  const [confirmed, setConfirmed] = useState(false)
+  const [modality, setModality] = useState('presencial')
+  const [simulatedDay, setSimulatedDay] = useState(() => new Date().getDay() || 1)
+  const reservedSlotIds = useMemo(() => new Set(reservations.flatMap((reservation) => (
+    Array.from({ length: reservation.endHour - reservation.startHour }, (_, index) => `${reservation.dateKey}-${reservation.startHour + index}`)
+  ))), [reservations])
 
-      <div className="pea-breadcrumbs">Inicio / Clases de Inglés / Profesores Nativos</div>
+  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const date = getMonday(new Date())
+    date.setDate(date.getDate() + index)
+    return date
+  }), [])
 
-      <section className="pea-benefits">
-        <h2>¿Por qué estudiar en Pro English Academy?</h2>
-        <div className="benefit-grid">
-          <div className="benefit-item">
-            <div className="icon-circle">$
-            </div>
-            <h3>Es gratis</h3>
-            <p>Accede a información básica y encuentra profesores sin costo.</p>
-          </div>
+  const simulatedDate = useMemo(() => {
+    const date = getMonday(new Date())
+    date.setDate(date.getDate() + simulatedDay - 1)
+    return date
+  }, [simulatedDay])
 
-          <div className="benefit-item">
-            <div className="icon-circle">≋</div>
-            <h3>Compara precios</h3>
-            <p>Compara tarifas y elige la mejor opción para tu presupuesto.</p>
-          </div>
+  const selectableDates = useMemo(() => getSelectableDates(simulatedDate).map((date) => ({
+    date,
+    dateKey: toDateKey(date),
+    day: weekDayNames[date.getDay()],
+    label: formatDate(date),
+    key: toDateKey(date),
+  })), [simulatedDate])
 
-          <div className="benefit-item">
-            <div className="icon-circle">✓</div>
-            <h3>Reserva con confianza</h3>
-            <p>Reserva y recibe confirmaciones y recordatorios automáticos.</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
+  const slotsByDate = useMemo(() => selectableDates.reduce((slots, { date, key }) => {
+    slots[key] = createSlots(date, date.getDay() === 6 ? 8 : 7, date.getDay() === 6 ? 15 : 20)
+    return slots
+  }, {}), [selectableDates])
+
+  const completedClasses = useMemo(() => [
+    { id: 'completed-1', dateKey: toDateKey(weekDates[0]), lesson: 'Present Simple', time: '09:00 AM' },
+    { id: 'completed-2', dateKey: toDateKey(weekDates[2]), lesson: 'Past Continuous', time: '05:00 PM' },
+  ], [weekDates])
+
+  const toggleSlot = (slot) => {
+    if (!slot || reservedSlotIds.has(slot.id) || confirmed) return
+
+    const isSelected = selectedSlots.some((selectedSlot) => selectedSlot.id === slot.id)
+    if (!isSelected && selectedSlots.length >= studentHours) {
+      alert(`Has alcanzado el límite de ${studentHours} horas. Deselecciona una hora y elige otra.`)
+      return
+    }
+
+    setSelectedSlots((currentSlots) => {
+      if (isSelected) {
+        return currentSlots.filter((currentSlot) => currentSlot.id !== slot.id)
+      }
+      return [...currentSlots, slot]
+    })
+  }
+
+  const getSlotStatus = (slot) => {
+    if (!slot) return 'unavailable'
+    if (reservedSlotIds.has(slot.id)) return 'full'
+    if (selectedSlots.some((selectedSlot) => selectedSlot.id === slot.id)) return 'selected'
+    return 'available'
+  }
+
+  const handleSimulatedDayChange = (day) => {
+    setSimulatedDay(day)
+    setSelectedSlots([])
+    setConfirmed(false)
+  }
+
+  const handleConfirm = () => {
+    onReserve(selectedSlots)
+    setConfirmed(true)
+  }
+
+  return <div className="student-portal">
+    <StudentNavbar activeView="home" onLogout={onLogout} onNavigate={onNavigate} user={user} />
+    <main className="student-main">
+      <ContractHero modality={modality} onModalityChange={setModality} onSimulatedDayChange={handleSimulatedDayChange} selectedCount={selectedSlots.length} simulatedDay={simulatedDay} studentHours={studentHours} user={user} />
+      <ScheduleSection confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
+      <WeekProgress completedClasses={completedClasses} weekDates={weekDates} />
+    </main>
+    <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={handleConfirm} selectedSlots={selectedSlots} studentHours={studentHours} />
+    <SchoolFooter />
+  </div>
 }

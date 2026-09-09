@@ -2,14 +2,20 @@ import { useState } from 'react'
 import styles from './login.module.css'
 import logopro from '../../assets/logo_og.png'
 
-export default function LoginPage() {
+export default function LoginPage({ onLogin }) {
   const [matricula, setMatricula] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
 
   function handleSubmit(event) {
     event.preventDefault()
-    console.log({ matricula, password, rememberMe })
+
+    if (!matricula.trim() || !password.trim()) {
+      alert('Debes llenar la matrícula y la contraseña para continuar.')
+      return
+    }
+
+    onLogin({ matricula: matricula.trim(), password: password.trim() })
   }
 
   return (
@@ -40,7 +46,7 @@ export default function LoginPage() {
             <p>Ingresa tus datos para continuar.</p>
           </header>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <form className={styles.form} noValidate onSubmit={handleSubmit}>
             <label htmlFor="matricula">
               Matrícula (ID)
               <input
@@ -51,7 +57,6 @@ export default function LoginPage() {
                 onChange={(event) => setMatricula(event.target.value)}
                 placeholder="Ingresa tu matrícula"
                 autoComplete="username"
-                required
               />
             </label>
 
@@ -65,7 +70,6 @@ export default function LoginPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Ingresa tu contraseña"
                 autoComplete="current-password"
-                required
               />
             </label>
 

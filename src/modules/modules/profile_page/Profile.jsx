@@ -1,59 +1,47 @@
-import React, { useState } from 'react';
+import React from 'react';
+import StudentNavbar from '../../../Components/StudentNavBar';
 import './Profile.css';
 
-export const Profile = ({ onNavigate }) => {
-  const [students] = useState([
-    {
-      id: '1234',
-      name: 'Carlos Mendoza',
-      level: 'I - Intermediate',
-    },
-    {
-      id: '5678',
-      name: 'Ana Sofia Gómez',
-      level: 'B - Beginner',
-    }
-  ]);
+const scheduleHours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 
-  const [studentIndex, setStudentIndex] = useState(0);
-  const currentStudent = students[studentIndex];
+function formatClassDate(dateKey) {
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+}
 
-  const [upcomingClasses, setUpcomingClasses] = useState([
-    {
-      id: 1,
-      title: 'Clase Presencial',
-      date: '2026-09-09',
-      formattedDate: '09 de Septiembre, 2026',
-      time: '16:00 - 17:00',
-    },
-    {
-      id: 2,
-      title: 'Clase Presencial',
-      date: '2026-09-09',
-      formattedDate: '09 de Septiembre, 2026',
-      time: '17:00 - 18:00',
-    },
-  ]);
+function formatHour(hour) {
+  return `${String(hour).padStart(2, '0')}:00`
+}
 
-  const [pastClasses] = useState([
-    {
-      id: 101,
-      title: 'Clase Presencial',
-      date: '2026-09-02',
-      formattedDate: '02 de Septiembre, 2026',
-      time: '16:00 - 17:00',
-    },
-  ]);
+function isAtLeastOneDayAhead(dateKey) {
+  const classDate = new Date(`${dateKey}T00:00:00`)
+  const today = new Date()
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.ceil((classDate - todayStart) / (1000 * 60 * 60 * 24)) >= 1
+}
+
+export const Profile = ({ onCancelReservation, onNavigate, onLogout, onUpdateReservation, reservations, user }) => {
+  const [editingId, setEditingId] = React.useState(null)
+  const [editStartHour, setEditStartHour] = React.useState(null)
+  const [editEndHour, setEditEndHour] = React.useState(null)
+  const upcomingClasses = reservations
+    .filter((reservation) => reservation.userId === user.id)
+    .map((reservation) => {
+      return {
+        ...reservation,
+        title: 'Clase Presencial',
+        date: reservation.dateKey,
+        formattedDate: formatClassDate(reservation.dateKey),
+        time: `${formatHour(reservation.startHour)} - ${formatHour(reservation.endHour)}`,
+      }
+    });
+
+  const currentStudent = user;
+  const pastClasses = user.pastClasses;
 
   const MAX_WEEKLY_HOURS = 6;
 
   const handleCancelClass = (classItem) => {
-    const classDate = new Date(classItem.date);
-    const today = new Date();
-    const diffTime = classDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 1) {
+    if (!isAtLeastOneDayAhead(classItem.date)) {
       alert('Las cancelaciones deben realizarse con al menos 1 día de anticipación.');
       return;
     }
@@ -63,32 +51,46 @@ export const Profile = ({ onNavigate }) => {
     );
 
     if (confirmCancel) {
-      setUpcomingClasses((prev) => prev.filter((c) => c.id !== classItem.id));
+      onCancelReservation(classItem.id);
       alert('Clase cancelada exitosamente.');
     }
   };
 
-  const weeklyHoursUsed = upcomingClasses.length;
+  const handleEditClass = (classItem) => {
+    if (!isAtLeastOneDayAhead(classItem.date)) {
+      alert('Las ediciones deben realizarse con al menos 1 día de anticipación.');
+      return;
+    }
+
+    setEditingId(classItem.id);
+    setEditStartHour(classItem.startHour);
+    setEditEndHour(classItem.endHour);
+  };
+
+  const handleSaveEdit = (classItem) => {
+    if (editStartHour >= editEndHour) {
+      alert('La hora de finalización debe ser posterior a la hora de inicio.');
+      return;
+    }
+
+    const otherReservations = reservations.filter((reservation) => reservation.id !== classItem.id)
+    const hasConflict = otherReservations.some((reservation) => reservation.dateKey === classItem.date && reservation.startHour < editEndHour && reservation.endHour > editStartHour)
+    if (hasConflict) {
+      alert('Uno o más horarios seleccionados ya están ocupados. Elige otro intervalo.');
+      return;
+    }
+
+    onUpdateReservation(classItem.id, editStartHour, editEndHour);
+    setEditingId(null);
+  };
+
+  const weeklyHoursUsed = upcomingClasses.reduce((total, classItem) => total + classItem.endHour - classItem.startHour, 0);
   const weeklyPercent = Math.min((weeklyHoursUsed / MAX_WEEKLY_HOURS) * 100, 100);
 
   return (
-    <div className="profile-container">
-      <div className="demo-switcher">
-        <small>Cambiar alumno de prueba: </small>
-        <button
-          className={studentIndex === 0 ? 'active' : ''}
-          onClick={() => setStudentIndex(0)}
-        >
-          Alumno 1 (1234)
-        </button>
-        <button
-          className={studentIndex === 1 ? 'active' : ''}
-          onClick={() => setStudentIndex(1)}
-        >
-          Alumno 2 (5678)
-        </button>
-      </div>
-
+    <div className="profile-page">
+      <StudentNavbar activeView="profile" onLogout={onLogout} onNavigate={onNavigate} user={user} />
+      <main className="profile-container">
       <header className="profile-header">
         <div className="profile-avatar">
           {currentStudent.name.split(' ').map((n) => n[0]).join('')}
@@ -149,12 +151,19 @@ export const Profile = ({ onNavigate }) => {
                     <p>⏰ {item.time}</p>
                   </div>
                   <div className="class-actions">
-                    <button
-                      className="btn-cancel"
-                      onClick={() => handleCancelClass(item)}
-                    >
-                      Cancelar clase
-                    </button>
+                    {editingId === item.id ? (
+                      <div className="edit-class-controls">
+                        <label>Inicio<select value={editStartHour} onChange={(event) => setEditStartHour(Number(event.target.value))}>{scheduleHours.slice(0, -1).map((hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}</select></label>
+                        <label>Fin<select value={editEndHour} onChange={(event) => setEditEndHour(Number(event.target.value))}>{scheduleHours.slice(1).map((hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}</select></label>
+                        <button className="btn-primary" onClick={() => handleSaveEdit(item)} type="button">Guardar</button>
+                        <button className="btn-cancel" onClick={() => setEditingId(null)} type="button">Cancelar</button>
+                      </div>
+                    ) : (
+                      <>
+                        <button className="btn-primary" onClick={() => handleEditClass(item)} type="button">Editar horario</button>
+                        <button className="btn-cancel" onClick={() => handleCancelClass(item)} type="button">Cancelar clase</button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -180,6 +189,7 @@ export const Profile = ({ onNavigate }) => {
           </div>
         </aside>
       </div>
+      </main>
     </div>
   );
 };

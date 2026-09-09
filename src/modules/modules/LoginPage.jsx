@@ -49,7 +49,7 @@ export default function LoginPage() {
                 type="text"
                 value={matricula}
                 onChange={(event) => setMatricula(event.target.value)}
-                placeholder="Ingresa tu matrícula"
+                placeholder="Ejemplo: (3244)"
                 autoComplete="username"
                 required
               />

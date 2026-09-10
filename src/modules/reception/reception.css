@@ -55,7 +55,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   padding: 0.6rem 1rem;
-  font-size: .9rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #ffffff;
   box-shadow: var(--shadow-sm);
@@ -118,7 +118,9 @@
 }
 
 .search-field input,
-.filter-field select {
+.filter-field select,
+.student-form select,
+.student-form input {
   width: 100%;
   background: var(--surface-white);
   border: 1px solid var(--border-color);
@@ -132,7 +134,9 @@
 }
 
 .search-field input:focus,
-.filter-field select:focus {
+.filter-field select:focus,
+.student-form select:focus,
+.student-form input:focus {
   border-color: var(--primary-blue);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
@@ -168,13 +172,15 @@
   font-weight: 700;
 }
 
-.reservation-list {
+.reservation-list,
+.student-list {
   display: grid;
   gap: 0.9rem;
   padding: 1rem 1.1rem 1.1rem;
 }
 
-.reservation-card {
+.reservation-card,
+.student-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -187,12 +193,14 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.reservation-card:hover {
+.reservation-card:hover,
+.student-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 22px -12px rgba(15, 23, 42, 0.18);
 }
 
-.reservation-main {
+.reservation-main,
+.student-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -209,7 +217,8 @@
   font-weight: 700;
 }
 
-.reservation-card h3 {
+.reservation-card h3,
+.student-card h3 {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -229,7 +238,8 @@
   font-weight: 700;
 }
 
-.reservation-meta {
+.reservation-meta,
+.student-meta {
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -237,9 +247,105 @@
   justify-content: flex-end;
 }
 
-.reservation-meta strong {
+.reservation-meta strong,
+.student-meta strong {
   color: var(--text-dark);
   font-size: 0.9rem;
+}
+
+.student-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.1rem 0;
+}
+
+.btn-primary,
+.btn-secondary,
+.student-action-button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--primary-blue);
+  color: #ffffff;
+  border-color: var(--primary-blue);
+  box-shadow: 0 10px 20px -12px rgba(37, 99, 235, 0.7);
+}
+
+.btn-primary:hover {
+  filter: brightness(0.98);
+}
+
+.btn-secondary {
+  background: var(--surface-white);
+  color: var(--text-dark);
+  border-color: var(--border-color);
+}
+
+.student-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.1rem 0;
+}
+
+.student-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.student-form .search-field {
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-bottom: 0.2rem;
+}
+
+.notice-banner {
+  margin: 1rem 1.1rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary-blue);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.student-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.student-action-button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.student-action-button.edit {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary-blue);
+  border-color: rgba(37, 99, 235, 0.12);
+}
+
+.student-action-button.delete {
+  background: rgba(197, 34, 31, 0.05);
+  color: var(--accent-red);
+  border-color: rgba(197, 34, 31, 0.14);
 }
 
 .empty-state {
@@ -252,7 +358,9 @@
 @media (max-width: 700px) {
   .reception-header,
   .reservation-card,
-  .reservation-main {
+  .student-card,
+  .reservation-main,
+  .student-main {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -261,9 +369,21 @@
     grid-template-columns: 1fr;
   }
 
-  .reservation-meta {
+  .student-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-meta,
+  .student-meta {
     width: 100%;
     justify-content: space-between;
     min-width: 0;
+  }
+
+  .student-actions,
+  .form-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

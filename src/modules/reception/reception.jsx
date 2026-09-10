@@ -184,7 +184,7 @@ const Reception = () => {
     const normalizedId = studentForm.id.trim();
 
     if (!normalizedName || !normalizedId) {
-      window.alert('Completa el nombre y la matrícula del alumno.');
+      window.alert('Completa el nombre y ID del alumno.');
       return;
     }
 
@@ -193,7 +193,7 @@ const Reception = () => {
     );
 
     if (duplicateExists) {
-      window.alert('Ya existe un alumno con esa matrícula.');
+      window.alert('Ya existe un alumno con ese ID.');
       return;
     }
 
@@ -345,7 +345,7 @@ const Reception = () => {
                 </label>
 
                 <label className="search-field" htmlFor="student-id">
-                  <span>Matrícula</span>
+                  <span>ID</span>
                   <input
                     id="student-id"
                     name="id"
@@ -435,7 +435,7 @@ const Reception = () => {
 
                   <div className="student-actions">
                     <button type="button" className="student-action-button edit" onClick={() => openStudentForm(student)}>
-                      Editar
+                      Editar Alumno
                     </button>
                     <button type="button" className="student-action-button delete" onClick={() => handleDeleteStudent(student.id)}>
                       Eliminar

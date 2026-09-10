@@ -96,7 +96,7 @@ export const Profile = ({ onNavigate }) => {
         <div className="profile-info">
           <h2>{currentStudent.name}</h2>
           <div className="profile-tags">
-            <span className="badge-id">Matrícula: {currentStudent.id}</span>
+            <span className="badge-id">ID alumno: {currentStudent.id}</span>
             <span className="badge-level">Nivel: {currentStudent.level}</span>
           </div>
         </div>
@@ -105,7 +105,7 @@ export const Profile = ({ onNavigate }) => {
       <section className="stats-grid stats-grid-single">
         <div className="stat-card stat-card-highlight">
           <div className="stat-header">
-            <h3>Límite Semanal</h3>
+            <h3>Límite de horas semanal</h3>
             <span className="stat-chip">Escuela</span>
           </div>
           <div className="stat-value">

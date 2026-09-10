@@ -1,12 +1,27 @@
+:root {
+  --night: #0a192f;
+  --surface: #0f172a;
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --cyan: #00d2ff;
+  --cobalt: #2563eb;
+  --muted: #94a3b8;
+  --border: rgba(10, 25, 47, 0.1);
+  --danger: #ef4444;
+}
+
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   min-height: 100vh;
-  background-color: #ffffff !important;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  color: var(--night);
+  background: #ffffff;
 }

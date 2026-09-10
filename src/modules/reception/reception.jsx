@@ -1,14 +1,26 @@
 import React, { useMemo, useState } from 'react';
 import './reception.css';
 
-const getTomorrowLabel = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+const baseStudents = [
+  { student: 'José Ramírez', studentId: '2048', level: 'A - Advanced' },
+  { student: 'Diego Lara', studentId: '4444', level: 'A - Advanced' },
+  { student: 'Didier Camargo', studentId: '5665', level: 'A - Advanced' },
+  { student: 'Diego Torres', studentId: '2256', level: 'A - Advanced' },
+  { student: 'Valeria Gómez', studentId: '4411', level: 'B - Beginner' },
+  { student: 'Mateo Ruiz', studentId: '5637', level: 'I - Intermediate' },
+  { student: 'Andrea Flores', studentId: '7823', level: 'A - Advanced' },
+  { student: 'Fernando Silva', studentId: '9014', level: 'B - Beginner' },
+];
+
+const getDateLabel = (offsetDays = 0) => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + offsetDays);
 
   return {
-    date: tomorrow,
-    iso: tomorrow.toISOString().split('T')[0],
-    formatted: tomorrow.toLocaleDateString('es-MX', {
+    date,
+    iso: date.toISOString().split('T')[0],
+    formatted: date.toLocaleDateString('es-MX', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -17,34 +29,51 @@ const getTomorrowLabel = () => {
   };
 };
 
-const dummyReservations = [
-  { id: 1, student: 'José Ramírez', studentId: '2048', level: 'A - Advanced', startHour: 9, date: '2026-09-10' },
-  { id: 2, student: 'Diego Lara', studentId: '4444', level: 'A - Advanced', startHour: 11, date: '2026-09-10' },
-  { id: 3, student: 'Didier Camargo', studentId: '5665', level: 'A - Advanced', startHour: 13, date: '2026-09-10' },
-  { id: 4, student: 'Diego Torres', studentId: '2256', level: 'A - Advanced', startHour: 15, date: '2026-09-10' },
-  { id: 5, student: 'Valeria Gómez', studentId: '4411', level: 'B - Beginner', startHour: 16, date: '2026-09-10' },
-  { id: 6, student: 'Mateo Ruiz', studentId: '5637', level: 'I - Intermediate', startHour: 18, date: '2026-09-10' },
-  { id: 7, student: 'Andrea Flores', studentId: '7823', level: 'A - Advanced', startHour: 19, date: '2026-09-10' },
-  { id: 8, student: 'Fernando Silva', studentId: '9014', level: 'B - Beginner', startHour: 17, date: '2026-09-10' },
-];
+const buildReservationsForDate = (isoDate) => {
+  const scheduleHours = [8, 9, 10, 11, 13, 15, 16, 17, 18, 19, 20];
+
+  return baseStudents.map((student, index) => ({
+    id: `${isoDate}-${index + 1}`,
+    ...student,
+    date: isoDate,
+    startHour: scheduleHours[index % scheduleHours.length],
+  }));
+};
 
 const formatBlock = (startHour) => `${String(startHour).padStart(2, '0')}:00 - ${String(startHour + 1).padStart(2, '0')}:00`;
 
 const Reception = () => {
-  const tomorrow = useMemo(() => getTomorrowLabel(), []);
+  const today = useMemo(() => getDateLabel(0), []);
+  const tomorrow = useMemo(() => getDateLabel(1), []);
+  const [activeTab, setActiveTab] = useState('today');
   const [query, setQuery] = useState('');
   const [selectedHour, setSelectedHour] = useState('all');
 
+  const todayReservations = useMemo(() => buildReservationsForDate(today.iso), [today.iso]);
+  const tomorrowReservations = useMemo(() => buildReservationsForDate(tomorrow.iso), [tomorrow.iso]);
+
+  const activeReservations = useMemo(() => {
+    const currentDate = new Date();
+    const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
+
+    if (activeTab === 'today') {
+      return [...todayReservations]
+        .filter((reservation) => reservation.startHour * 60 >= currentMinutes)
+        .sort((a, b) => a.startHour - b.startHour);
+    }
+
+    return [...tomorrowReservations].sort((a, b) => a.startHour - b.startHour);
+  }, [activeTab, todayReservations, tomorrowReservations]);
+
   const timeOptions = useMemo(() => {
-    const hours = [...new Set(dummyReservations.map((item) => item.startHour))].sort((a, b) => a - b);
+    const hours = [...new Set(activeReservations.map((item) => item.startHour))].sort((a, b) => a - b);
     return hours.map((hour) => ({ value: String(hour), label: formatBlock(hour) }));
-  }, []);
+  }, [activeReservations]);
 
   const filteredReservations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return [...dummyReservations]
-      .filter((reservation) => reservation.date === tomorrow.iso)
+    return [...activeReservations]
       .filter((reservation) => {
         if (selectedHour !== 'all' && reservation.startHour !== Number(selectedHour)) {
           return false;
@@ -60,7 +89,9 @@ const Reception = () => {
         );
       })
       .sort((a, b) => a.startHour - b.startHour);
-  }, [query, selectedHour, tomorrow.iso]);
+  }, [activeReservations, query, selectedHour]);
+
+  const displayLabel = activeTab === 'today' ? today : tomorrow;
 
   return (
     <div className="reception-shell">
@@ -69,7 +100,24 @@ const Reception = () => {
           <p className="eyebrow">Reservas</p>
           <h1>Recepción</h1>
         </div>
-        <div className="date-pill">{tomorrow.formatted}</div>
+        <div className="date-pill">{displayLabel.formatted}</div>
+      </div>
+
+      <div className="tab-switcher" aria-label="Seleccionar fecha de reservas">
+        <button
+          type="button"
+          className={activeTab === 'today' ? 'tab-button active' : 'tab-button'}
+          onClick={() => setActiveTab('today')}
+        >
+          Hoy
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'tomorrow' ? 'tab-button active' : 'tab-button'}
+          onClick={() => setActiveTab('tomorrow')}
+        >
+          Mañana
+        </button>
       </div>
 
       <section className="reception-toolbar">
@@ -104,7 +152,9 @@ const Reception = () => {
       <section className="reception-panel">
         <div className="panel-header">
           <h2>Proximas clases</h2>
-          <span>{filteredReservations.length} {filteredReservations.length === 1 ? 'reserva' : 'reservas'}</span>
+          <span>
+            {filteredReservations.length} {filteredReservations.length === 1 ? 'reserva' : 'reservas'}
+          </span>
         </div>
 
         {filteredReservations.length === 0 ? (

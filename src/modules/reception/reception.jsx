@@ -18,14 +18,14 @@ const getTomorrowLabel = () => {
 };
 
 const dummyReservations = [
-  { id: 1, student: 'José Ramírez', studentId: 'R-2048', level: 'A2', startHour: 9, date: '2026-09-10' },
-  { id: 2, student: 'María López', studentId: 'L-1184', level: 'B1', startHour: 11, date: '2026-09-10' },
-  { id: 3, student: 'Sofía Castro', studentId: 'C-3421', level: 'I - Intermediate', startHour: 13, date: '2026-09-10' },
-  { id: 4, student: 'Diego Torres', studentId: 'T-2256', level: 'A1', startHour: 15, date: '2026-09-10' },
-  { id: 5, student: 'Valeria Gómez', studentId: 'G-4411', level: 'B2', startHour: 16, date: '2026-09-10' },
-  { id: 6, student: 'Mateo Ruiz', studentId: 'R-5637', level: 'I - Intermediate', startHour: 18, date: '2026-09-10' },
-  { id: 7, student: 'Andrea Flores', studentId: 'F-7823', level: 'A2', startHour: 19, date: '2026-09-10' },
-  { id: 8, student: 'Fernando Silva', studentId: 'S-9014', level: 'B1', startHour: 17, date: '2026-09-10' },
+  { id: 1, student: 'José Ramírez', studentId: '2048', level: 'A - Advanced', startHour: 9, date: '2026-09-10' },
+  { id: 2, student: 'Diego Lara', studentId: '4444', level: 'A - Advanced', startHour: 11, date: '2026-09-10' },
+  { id: 3, student: 'Didier Camargo', studentId: '5665', level: 'A - Advanced', startHour: 13, date: '2026-09-10' },
+  { id: 4, student: 'Diego Torres', studentId: '2256', level: 'A - Advanced', startHour: 15, date: '2026-09-10' },
+  { id: 5, student: 'Valeria Gómez', studentId: '4411', level: 'B - Beginner', startHour: 16, date: '2026-09-10' },
+  { id: 6, student: 'Mateo Ruiz', studentId: '5637', level: 'I - Intermediate', startHour: 18, date: '2026-09-10' },
+  { id: 7, student: 'Andrea Flores', studentId: '7823', level: 'A - Advanced', startHour: 19, date: '2026-09-10' },
+  { id: 8, student: 'Fernando Silva', studentId: '9014', level: 'B - Beginner', startHour: 17, date: '2026-09-10' },
 ];
 
 const formatBlock = (startHour) => `${String(startHour).padStart(2, '0')}:00 - ${String(startHour + 1).padStart(2, '0')}:00`;
@@ -78,14 +78,14 @@ const Reception = () => {
           <input
             id="reservation-search"
             type="text"
-            placeholder="Nombre o matrícula"
+            placeholder="Nombre o ID"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
 
         <label className="filter-field" htmlFor="reservation-hour">
-          <span>Horario</span>
+          <span>Filtrar horario</span>
           <select
             id="reservation-hour"
             value={selectedHour}
@@ -103,12 +103,12 @@ const Reception = () => {
 
       <section className="reception-panel">
         <div className="panel-header">
-          <h2>Reservas de mañana</h2>
+          <h2>Proximas clases</h2>
           <span>{filteredReservations.length} {filteredReservations.length === 1 ? 'reserva' : 'reservas'}</span>
         </div>
 
         {filteredReservations.length === 0 ? (
-          <div className="empty-state">No hay reservas para los filtros seleccionados.</div>
+          <div className="empty-state">No hay reservas encontradas</div>
         ) : (
           <div className="reservation-list">
             {filteredReservations.map((reservation) => (

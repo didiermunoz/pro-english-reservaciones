@@ -22,6 +22,35 @@
   min-height: 100vh;
 }
 
+.profile-cta-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.profile-home-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.9rem 1.4rem;
+  border-radius: 12px;
+  background: var(--primary-gradient);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  box-shadow: 0 16px 22px -18px rgba(29, 78, 216, 0.9);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.profile-home-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
 .demo-switcher {
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import './reception.css';
 
 const baseStudents = [
@@ -250,7 +251,21 @@ const Reception = () => {
           <p className="eyebrow">Reservas</p>
           <h1>Recepción</h1>
         </div>
-        <div className="date-pill">{displayLabel.formatted}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="date-pill">{displayLabel.formatted}</div>
+          <Link
+            to="/login"
+            style={{
+              color: '#ffffff',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              opacity: 0.95,
+            }}
+          >
+            Volver al login
+          </Link>
+        </div>
       </div>
 
       <div className="tab-switcher" aria-label="Seleccionar tipo de información">
@@ -283,7 +298,7 @@ const Reception = () => {
           <input
             id="reservation-search"
             type="text"
-            placeholder={activeTab === 'students' ? 'Nombre o matrícula' : 'Nombre o ID'}
+            placeholder={activeTab === 'students' ? 'Nombre o ID' : 'Nombre o ID'}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />

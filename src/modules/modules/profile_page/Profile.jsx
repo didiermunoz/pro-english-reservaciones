@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import './Profile.css';
 
 export const Profile = ({ onNavigate }) => {
@@ -88,18 +89,39 @@ export const Profile = ({ onNavigate }) => {
           Alumno 2 (5678)
         </button>
       </div>
+              {/* boton de volver a inicio */}
+      <div className="profile-cta-row">
+        <Link className="profile-home-button" to="/home">
+          Ir a Inicio
+        </Link>
+      </div>
+
 
       <header className="profile-header">
-        <div className="profile-avatar">
-          {currentStudent.name.split(' ').map((n) => n[0]).join('')}
-        </div>
-        <div className="profile-info">
-          <h2>{currentStudent.name}</h2>
-          <div className="profile-tags">
-            <span className="badge-id">ID alumno: {currentStudent.id}</span>
-            <span className="badge-level">Nivel: {currentStudent.level}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
+          <div className="profile-avatar">
+            {currentStudent.name.split(' ').map((n) => n[0]).join('')}
+          </div>
+          <div className="profile-info">
+            <h2>{currentStudent.name}</h2>
+            <div className="profile-tags">
+              <span className="badge-id">ID alumno: {currentStudent.id}</span>
+              <span className="badge-level">Nivel: {currentStudent.level}</span>
+            </div>
           </div>
         </div>
+        <Link
+          to="/login"
+          style={{
+            color: '#ffffff',
+            textDecoration: 'none',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            opacity: 0.95,
+          }}
+        >
+          Cerrar sesión
+        </Link>
       </header>
 
       <section className="stats-grid stats-grid-single">

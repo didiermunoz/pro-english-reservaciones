@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import styles from './login.module.css'
 import logopro from '../../assets/logo_og.png'
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [matricula, setMatricula] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -10,6 +12,7 @@ export default function LoginPage() {
   function handleSubmit(event) {
     event.preventDefault()
     console.log({ matricula, password, rememberMe })
+    navigate('/perfil')
   }
 
   return (
@@ -85,6 +88,21 @@ export default function LoginPage() {
               Iniciar sesión
             </button>
           </form>
+
+          {/* TODO: quitar este acceso directo cuando exista login con roles reales (alumno vs recepción) */}
+          <div style={{ marginTop: '0.95rem', textAlign: 'center' }}>
+            <Link
+              to="/recepcion"
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-muted, #64748b)',
+                textDecoration: 'none',
+                display: 'inline-block',
+              }}
+            >
+              Acceso Recepción (temporal)
+            </Link>
+          </div>
         </div>
       </section>
     </main>

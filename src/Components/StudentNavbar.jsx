@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import StudentBrand from './StudentBrand'
 
 const navigationItems = [
@@ -9,6 +10,17 @@ const navigationItems = [
 ]
 
 export default function StudentNavbar({ onNavigate }) {
+  const navigate = useNavigate()
+
+  const handleGoToProfile = () => {
+    if (onNavigate) {
+      onNavigate('profile')
+      return
+    }
+
+    navigate('/perfil')
+  }
+
   return (
     <header className="student-navbar">
       <StudentBrand />
@@ -21,7 +33,7 @@ export default function StudentNavbar({ onNavigate }) {
         <button
           className="account-button"
           type="button"
-          onClick={() => onNavigate && onNavigate('profile')}
+          onClick={handleGoToProfile}
         >
           Mi cuenta
         </button>

@@ -39,6 +39,8 @@ const initialRooms = Array.from({ length: 9 }, (_, index) => ({
   studentIds: [],
 }));
 
+const classroomOptions = Array.from({ length: 20 }, (_, index) => String(index + 1));
+
 const generateTempPassword = () => {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   let password = '';
@@ -93,6 +95,7 @@ const Reception = () => {
   const [studentForm, setStudentForm] = useState(emptyStudentForm);
   const [rooms, setRooms] = useState(initialRooms);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [isRoomViewMode, setIsRoomViewMode] = useState(false);
 
   const todayReservations = useMemo(() => buildReservationsForDate(today.iso), [today.iso]);
   const tomorrowReservations = useMemo(() => buildReservationsForDate(tomorrow.iso), [tomorrow.iso]);
@@ -126,6 +129,7 @@ const Reception = () => {
   const unassignedStudents = nextClassReservations.filter(
     (reservation) => !assignedStudentIds.has(reservation.id),
   );
+  const occupiedRooms = rooms.filter((room) => room.studentIds.length > 0);
 
   const timeOptions = useMemo(() => {
     const hours = [...new Set(activeReservations.map((item) => item.startHour))].sort((a, b) => a - b);
@@ -363,7 +367,7 @@ const Reception = () => {
         </button>
       </div>
 
-      <section className="reception-toolbar">
+      {!(activeTab === 'rooms' && isRoomViewMode) && <section className="reception-toolbar">
         <label className="search-field" htmlFor="reservation-search">
           <span>Buscar</span>
           <input
@@ -392,7 +396,7 @@ const Reception = () => {
             </select>
           </label>
         )}
-      </section>
+      </section>}
 
       {activeTab === 'rooms' ? (
         <section className="rooms-panel">
@@ -405,12 +409,52 @@ const Reception = () => {
                   : `Acomodando clase de las ${String(nextClassHour).padStart(2, '0')}:00 hrs`}
               </h2>
             </div>
-            <button type="button" className="btn-secondary" onClick={resetRoomAssignments}>
-              Reiniciar acomodo
-            </button>
+            <div className="rooms-header-actions">
+              {!isRoomViewMode && (
+                <button type="button" className="btn-secondary" onClick={resetRoomAssignments}>
+                  Reiniciar acomodo
+                </button>
+              )}
+              <button type="button" className="btn-secondary" onClick={() => setIsRoomViewMode((current) => !current)}>
+                {isRoomViewMode ? 'Modo edición' : 'Modo vista'}
+              </button>
+            </div>
           </div>
 
-          {nextClassHour !== undefined && (
+          {isRoomViewMode ? (
+            occupiedRooms.length === 0 ? (
+              <div className="rooms-view-empty">Aún no hay salones asignados para esta hora.</div>
+            ) : (
+              <div className="rooms-grid rooms-grid-view">
+                {occupiedRooms.map((room) => (
+                  <article key={room.id} className="room-card room-card-view">
+                    <div className="room-card-header">
+                      <h3>Salón {room.id}</h3>
+                      <span>{room.studentIds.length} alumnos</span>
+                    </div>
+                    <div className="room-details">
+                      <div><span>Teacher</span><strong>{room.teacher || 'Sin asignar'}</strong></div>
+                      <div><span>Classroom</span><strong>{room.classroom || 'Sin asignar'}</strong></div>
+                      <div><span>Lesson</span><strong>{room.lesson || 'Sin asignar'}</strong></div>
+                      <div><span>Level</span><strong>{room.level.split(' - ')[0]}</strong></div>
+                    </div>
+                    <div className="assigned-students">
+                      {room.studentIds.map((studentId) => {
+                        const student = getReservationById(studentId);
+
+                        return student ? (
+                          <div key={student.id} className="assigned-student assigned-student-view">
+                            <strong>{student.student}</strong>
+                            <span>{student.studentId} · {student.level.split(' - ')[0]}</span>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )
+          ) : nextClassHour !== undefined && (
             <>
               <div className="student-pool">
                 <div className="pool-heading">
@@ -429,7 +473,7 @@ const Reception = () => {
                         onClick={() => setSelectedStudentId(student.id)}
                       >
                         <strong>{student.student}</strong>
-                        <span>{student.studentId}</span>
+                        <span>{student.studentId} · {student.level.split(' - ')[0]}</span>
                       </button>
                     ))}
                   </div>
@@ -460,13 +504,18 @@ const Reception = () => {
                       </label>
                       <label className="room-field">
                         <span>Classroom</span>
-                        <input
-                          type="text"
+                        <select
                           value={room.classroom}
                           onClick={(event) => event.stopPropagation()}
                           onChange={(event) => handleRoomFieldChange(room.id, 'classroom', event.target.value)}
-                          placeholder="Ej. A-01"
-                        />
+                        >
+                          <option value="">Seleccionar salón</option>
+                          {classroomOptions.map((classroom) => (
+                            <option key={classroom} value={classroom}>
+                              {classroom}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                       <label className="room-field">
                         <span>Lesson</span>
@@ -510,7 +559,7 @@ const Reception = () => {
                               title="Regresar al pool"
                             >
                               <strong>{student.student}</strong>
-                              <span>{student.studentId} ×</span>
+                              <span>{student.studentId} · {student.level.split(' - ')[0]} ×</span>
                             </button>
                           ) : null;
                         })

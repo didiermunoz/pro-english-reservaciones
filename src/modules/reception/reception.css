@@ -392,6 +392,13 @@
   border-color: #ffffff;
 }
 
+.rooms-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
 .student-pool {
   padding: 1.25rem 1.4rem 1.1rem;
   border-bottom: 1px solid var(--border-color);
@@ -482,6 +489,10 @@
   padding: 1.1rem;
 }
 
+.rooms-grid-view {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
 .room-card {
   display: grid;
   gap: 1rem;
@@ -567,8 +578,55 @@
   color: var(--primary-blue);
 }
 
+.rooms-view-empty {
+  padding: 4rem 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.room-card-view {
+  align-content: start;
+  min-height: 260px;
+}
+
+.room-details {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.room-details div {
+  display: grid;
+  gap: 0.2rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.room-details span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-details strong {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+}
+
+.assigned-student-view {
+  cursor: default;
+}
+
+.assigned-student-view:hover {
+  border-color: var(--border-color);
+  color: var(--text-dark);
+}
+
 @media (max-width: 900px) {
-  .rooms-grid {
+  .rooms-grid:not(.rooms-grid-view) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -611,6 +669,10 @@
   }
 
   .rooms-header .btn-secondary {
+    width: 100%;
+  }
+
+  .rooms-header-actions {
     width: 100%;
   }
 

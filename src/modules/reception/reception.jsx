@@ -30,6 +30,15 @@ const emptyStudentForm = {
   totalHours: 12,
 };
 
+const initialRooms = Array.from({ length: 9 }, (_, index) => ({
+  id: index + 1,
+  teacher: '',
+  classroom: '',
+  lesson: '',
+  level: 'B - Beginner',
+  studentIds: [],
+}));
+
 const generateTempPassword = () => {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   let password = '';
@@ -82,22 +91,41 @@ const Reception = () => {
   const [studentNotice, setStudentNotice] = useState('');
   const [editingStudentId, setEditingStudentId] = useState(null);
   const [studentForm, setStudentForm] = useState(emptyStudentForm);
+  const [rooms, setRooms] = useState(initialRooms);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
 
   const todayReservations = useMemo(() => buildReservationsForDate(today.iso), [today.iso]);
   const tomorrowReservations = useMemo(() => buildReservationsForDate(tomorrow.iso), [tomorrow.iso]);
 
-  const activeReservations = useMemo(() => {
+  const todayActiveReservations = useMemo(() => {
     const currentDate = new Date();
     const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
 
+    return [...todayReservations]
+      .filter((reservation) => reservation.startHour * 60 >= currentMinutes)
+      .sort((a, b) => a.startHour - b.startHour);
+  }, [todayReservations]);
+
+  const activeReservations = useMemo(() => {
     if (activeTab === 'today') {
-      return [...todayReservations]
-        .filter((reservation) => reservation.startHour * 60 >= currentMinutes)
-        .sort((a, b) => a.startHour - b.startHour);
+      return todayActiveReservations;
     }
 
     return [...tomorrowReservations].sort((a, b) => a.startHour - b.startHour);
-  }, [activeTab, todayReservations, tomorrowReservations]);
+  }, [activeTab, todayActiveReservations, tomorrowReservations]);
+
+  const nextClassHour = todayActiveReservations[0]?.startHour;
+  const nextClassReservations = useMemo(
+    () => todayActiveReservations.filter((reservation) => reservation.startHour === nextClassHour),
+    [nextClassHour, todayActiveReservations],
+  );
+  const assignedStudentIds = useMemo(
+    () => new Set(rooms.flatMap((room) => room.studentIds)),
+    [rooms],
+  );
+  const unassignedStudents = nextClassReservations.filter(
+    (reservation) => !assignedStudentIds.has(reservation.id),
+  );
 
   const timeOptions = useMemo(() => {
     const hours = [...new Set(activeReservations.map((item) => item.startHour))].sort((a, b) => a - b);
@@ -244,6 +272,42 @@ const Reception = () => {
     setStudentNotice('');
   };
 
+  const handleRoomFieldChange = (roomId, field, value) => {
+    setRooms((currentRooms) => currentRooms.map((room) => (
+      room.id === roomId ? { ...room, [field]: value } : room
+    )));
+  };
+
+  const handleRoomClick = (roomId) => {
+    if (!selectedStudentId) {
+      return;
+    }
+
+    setRooms((currentRooms) => currentRooms.map((room) => (
+      room.id === roomId
+        ? { ...room, studentIds: [...room.studentIds, selectedStudentId] }
+        : room
+    )));
+    setSelectedStudentId(null);
+  };
+
+  const removeStudentFromRoom = (roomId, studentId) => {
+    setRooms((currentRooms) => currentRooms.map((room) => (
+      room.id === roomId
+        ? { ...room, studentIds: room.studentIds.filter((id) => id !== studentId) }
+        : room
+    )));
+  };
+
+  const resetRoomAssignments = () => {
+    setRooms((currentRooms) => currentRooms.map((room) => ({ ...room, studentIds: [] })));
+    setSelectedStudentId(null);
+  };
+
+  const getReservationById = (studentId) => (
+    nextClassReservations.find((reservation) => reservation.id === studentId)
+  );
+
   return (
     <div className="reception-shell">
       <div className="reception-header">
@@ -290,6 +354,13 @@ const Reception = () => {
         >
           Alumnos
         </button>
+        <button
+          type="button"
+          className={activeTab === 'rooms' ? 'tab-button active' : 'tab-button'}
+          onClick={() => setActiveTab('rooms')}
+        >
+          Salones
+        </button>
       </div>
 
       <section className="reception-toolbar">
@@ -323,7 +394,135 @@ const Reception = () => {
         )}
       </section>
 
-      {activeTab === 'students' ? (
+      {activeTab === 'rooms' ? (
+        <section className="rooms-panel">
+          <div className="rooms-header">
+            <div>
+              <p className="eyebrow rooms-eyebrow">Acomodo manual</p>
+              <h2>
+                {nextClassHour === undefined
+                  ? 'No hay una próxima clase pendiente de acomodar.'
+                  : `Acomodando clase de las ${String(nextClassHour).padStart(2, '0')}:00 hrs`}
+              </h2>
+            </div>
+            <button type="button" className="btn-secondary" onClick={resetRoomAssignments}>
+              Reiniciar acomodo
+            </button>
+          </div>
+
+          {nextClassHour !== undefined && (
+            <>
+              <div className="student-pool">
+                <div className="pool-heading">
+                  <h3>Alumnos por acomodar</h3>
+                  <span>{unassignedStudents.length} pendientes</span>
+                </div>
+                {unassignedStudents.length === 0 ? (
+                  <p className="pool-empty">Todos los alumnos están acomodados.</p>
+                ) : (
+                  <div className="student-chips">
+                    {unassignedStudents.map((student) => (
+                      <button
+                        key={student.id}
+                        type="button"
+                        className={selectedStudentId === student.id ? 'student-chip selected' : 'student-chip'}
+                        onClick={() => setSelectedStudentId(student.id)}
+                      >
+                        <strong>{student.student}</strong>
+                        <span>{student.studentId}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rooms-grid">
+                {rooms.map((room) => (
+                  <article
+                    key={room.id}
+                    className={selectedStudentId ? 'room-card ready' : 'room-card'}
+                    onClick={() => handleRoomClick(room.id)}
+                  >
+                    <div className="room-card-header">
+                      <h3>Salón {room.id}</h3>
+                      <span>{room.studentIds.length} alumnos</span>
+                    </div>
+                    <div className="room-fields">
+                      <label className="room-field">
+                        <span>Teacher</span>
+                        <input
+                          type="text"
+                          value={room.teacher}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => handleRoomFieldChange(room.id, 'teacher', event.target.value)}
+                          placeholder="Nombre del maestro"
+                        />
+                      </label>
+                      <label className="room-field">
+                        <span>Classroom</span>
+                        <input
+                          type="text"
+                          value={room.classroom}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => handleRoomFieldChange(room.id, 'classroom', event.target.value)}
+                          placeholder="Ej. A-01"
+                        />
+                      </label>
+                      <label className="room-field">
+                        <span>Lesson</span>
+                        <input
+                          type="text"
+                          value={room.lesson}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => handleRoomFieldChange(room.id, 'lesson', event.target.value)}
+                          placeholder="Lección"
+                        />
+                      </label>
+                      <label className="room-field">
+                        <span>Level</span>
+                        <select
+                          value={room.level}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => handleRoomFieldChange(room.id, 'level', event.target.value)}
+                        >
+                          <option value="B - Beginner">B - Beginner</option>
+                          <option value="I - Intermediate">I - Intermediate</option>
+                          <option value="A - Advanced">A - Advanced</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="assigned-students">
+                      {room.studentIds.length === 0 ? (
+                        <p className="assigned-empty">Sin alumnos asignados</p>
+                      ) : (
+                        room.studentIds.map((studentId) => {
+                          const student = getReservationById(studentId);
+
+                          return student ? (
+                            <button
+                              key={student.id}
+                              type="button"
+                              className="assigned-student"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removeStudentFromRoom(room.id, student.id);
+                              }}
+                              title="Regresar al pool"
+                            >
+                              <strong>{student.student}</strong>
+                              <span>{student.studentId} ×</span>
+                            </button>
+                          ) : null;
+                        })
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      ) : activeTab === 'students' ? (
         <section className="reception-panel student-panel">
           <div className="panel-header">
             <h2>Alumnos</h2>

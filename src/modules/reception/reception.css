@@ -355,6 +355,224 @@
   font-size: 0.9rem;
 }
 
+.rooms-panel {
+  background: var(--surface-white);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  box-shadow: 0 16px 30px -24px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+
+.rooms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem 1.6rem;
+  background: var(--primary-gradient);
+  color: #ffffff;
+}
+
+.rooms-eyebrow {
+  margin-bottom: 0.45rem;
+}
+
+.rooms-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+  letter-spacing: -0.03em;
+  color: #ffffff;
+}
+
+.rooms-header .btn-secondary {
+  flex-shrink: 0;
+  background: #ffffff;
+  color: var(--primary-blue);
+  border-color: #ffffff;
+}
+
+.student-pool {
+  padding: 1.25rem 1.4rem 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.pool-heading,
+.room-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pool-heading h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+}
+
+.pool-heading span,
+.room-card-header span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.student-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.student-chip,
+.assigned-student {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-white);
+  color: var(--text-dark);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.student-chip strong,
+.assigned-student strong {
+  font-size: 0.95rem;
+}
+
+.student-chip span,
+.assigned-student span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.student-chip.selected {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: #ffffff;
+  box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.8);
+}
+
+.student-chip.selected span {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.pool-empty,
+.assigned-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.pool-empty {
+  margin-top: 0.9rem;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.1rem;
+}
+
+.room-card {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.1rem;
+  background: var(--bg-light);
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.2);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.room-card.ready {
+  cursor: pointer;
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 14px 24px -16px rgba(37, 99, 235, 0.45);
+}
+
+.room-card.ready:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-blue);
+}
+
+.room-card-header h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.room-fields {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.room-field {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-field input,
+.room-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-white);
+  color: var(--text-dark);
+  font: 600 0.95rem var(--font-body);
+}
+
+.room-field input:focus,
+.room-field select:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.assigned-students {
+  display: grid;
+  gap: 0.45rem;
+  min-height: 3.1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.assigned-student {
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+}
+
+.assigned-student:hover {
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+@media (max-width: 900px) {
+  .rooms-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 700px) {
   .reception-header,
   .reservation-card,
@@ -385,5 +603,18 @@
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .rooms-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rooms-header .btn-secondary {
+    width: 100%;
+  }
+
+  .rooms-grid {
+    grid-template-columns: 1fr;
   }
 }

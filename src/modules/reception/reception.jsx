@@ -459,7 +459,7 @@ const Reception = () => {
       </section>}
 
       {activeTab === 'rooms' ? (
-        <section className="rooms-panel">
+        <section className={`rooms-panel${isRoomViewMode ? ' rooms-panel-fullscreen' : ''}`}>
           <div className="rooms-header">
             <div>
               {!isRoomViewMode && <p className="eyebrow rooms-eyebrow">Acomodo manual</p>}
@@ -562,8 +562,8 @@ const Reception = () => {
                       <label className="room-header-label">
                         <span>Classroom</span>
                         <input
-                          type="number"
-                          min="1"
+                          type="text"
+                          inputMode="numeric"
                           value={room.classroom}
                           disabled={room.locked}
                           onClick={(event) => event.stopPropagation()}

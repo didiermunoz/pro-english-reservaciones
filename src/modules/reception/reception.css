@@ -13,9 +13,9 @@
 }
 
 .reception-shell {
-  max-width: 980px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1.5rem 2.5rem;
+  padding: 1.5rem 1rem 2.5rem;
   font-family: var(--font-body);
   color: var(--text-dark);
 }
@@ -363,6 +363,15 @@
   overflow: hidden;
 }
 
+.rooms-panel-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow-y: auto;
+  padding: 2rem;
+  background: #ffffff;
+}
+
 .rooms-header {
   display: flex;
   align-items: center;
@@ -371,6 +380,12 @@
   padding: 1.5rem 1.6rem;
   background: var(--primary-gradient);
   color: #ffffff;
+}
+
+.rooms-panel-fullscreen .rooms-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .rooms-eyebrow {
@@ -787,11 +802,11 @@
 }
 
 .room-header-label input {
-  width: 5rem;
-  min-width: 0;
+  width: auto;
+  min-width: 3rem;
   border: 0;
   border-bottom: 2px solid var(--border-color);
-  padding: 0.1rem 0;
+  padding: 0.1rem 0.2rem;
   background: transparent;
   color: var(--text-dark);
   font: inherit;

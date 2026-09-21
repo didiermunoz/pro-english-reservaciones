@@ -420,11 +420,17 @@
   background: rgba(37, 99, 235, 0.03);
 }
 
-.pool-heading,
-.room-card-header {
+.pool-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
+}
+
+.room-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  align-items: center;
   gap: 1rem;
 }
 
@@ -547,7 +553,7 @@
   min-width: 0;
   padding: 1.1rem;
   background: var(--bg-light);
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--primary-blue);
   border-radius: 14px;
   box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.2);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -574,6 +580,7 @@
 .room-fields {
   display: grid;
   gap: 0.7rem;
+  min-width: 0;
 }
 
 .room-field {
@@ -590,6 +597,7 @@
 .room-field select {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
   padding: 0.7rem 0.75rem;
   border: 1px solid var(--border-color);
@@ -732,9 +740,11 @@
 .room-card-actions {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .room-lock-button {
@@ -745,7 +755,9 @@
   color: var(--text-muted);
   font: 700 0.68rem var(--font-body);
   cursor: pointer;
-  width: 100%;
+  flex: 1 1 7rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .room-lock-button:hover {

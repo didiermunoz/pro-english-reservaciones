@@ -10,6 +10,8 @@
   --shadow-sm: 0 4px 12px rgba(37, 99, 235, 0.08);
   --font-heading: 'Poppins', 'Inter', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --motion-fast: 0.16s ease;
+  --motion-standard: 0.2s ease;
 }
 
 .reception-shell {
@@ -31,6 +33,7 @@
   padding: 1.5rem 1.6rem;
   border-radius: 18px;
   box-shadow: 0 20px 35px -22px rgba(29, 78, 216, 0.7);
+  animation: reception-fade-in 0.35s ease both;
 }
 
 .eyebrow {
@@ -84,7 +87,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-standard), border-color var(--motion-standard), color var(--motion-standard), box-shadow var(--motion-standard), transform var(--motion-fast);
 }
 
 .tab-button:hover {
@@ -96,6 +99,16 @@
   color: #ffffff;
   border-color: var(--primary-blue);
   box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.6);
+}
+
+.tab-button:active,
+.btn-primary:active,
+.btn-secondary:active,
+.student-action-button:active,
+.room-lock-button:active,
+.room-delete-button:active,
+.add-room-button:active {
+  transform: translateY(1px);
 }
 
 .reception-toolbar {
@@ -141,12 +154,22 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
+.search-field input:hover,
+.filter-field select:hover,
+.student-form select:hover,
+.student-form input:hover,
+.room-field input:hover,
+.room-field select:hover {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
 .reception-panel {
   background: var(--surface-white);
   border: 1px solid var(--border-color);
   border-radius: 18px;
   box-shadow: 0 16px 30px -24px rgba(15, 23, 42, 0.28);
   overflow: hidden;
+  animation: reception-fade-in 0.3s ease both;
 }
 
 .panel-header {
@@ -197,6 +220,7 @@
 .student-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 22px -12px rgba(15, 23, 42, 0.18);
+  border-color: rgba(37, 99, 235, 0.3);
 }
 
 .reservation-main,
@@ -270,7 +294,7 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-standard), border-color var(--motion-standard), color var(--motion-standard), box-shadow var(--motion-standard), filter var(--motion-standard), transform var(--motion-fast);
 }
 
 .btn-primary {
@@ -284,6 +308,37 @@
   filter: brightness(0.98);
 }
 
+.btn-primary:hover,
+.btn-secondary:hover,
+.student-action-button:hover {
+  box-shadow: 0 8px 18px -12px rgba(15, 23, 42, 0.35);
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.student-action-button:focus-visible,
+.tab-button:focus-visible,
+.room-lock-button:focus-visible,
+.room-delete-button:focus-visible,
+.add-room-button:focus-visible,
+.student-chip:focus-visible,
+.assigned-student:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.student-action-button:disabled,
+.room-lock-button:disabled,
+.room-delete-button:disabled,
+.add-room-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn-secondary {
   background: var(--surface-white);
   color: var(--text-dark);
@@ -294,6 +349,7 @@
   display: grid;
   gap: 1rem;
   padding: 1rem 1.1rem 0;
+  animation: reception-fade-in 0.22s ease both;
 }
 
 .student-form-grid {
@@ -322,6 +378,7 @@
   color: var(--primary-blue);
   font-size: 0.9rem;
   font-weight: 700;
+  animation: reception-fade-in 0.25s ease both;
 }
 
 .student-actions {
@@ -361,6 +418,7 @@
   border-radius: 18px;
   box-shadow: 0 16px 30px -24px rgba(15, 23, 42, 0.28);
   overflow: hidden;
+  animation: reception-fade-in 0.3s ease both;
 }
 
 .rooms-panel-fullscreen {
@@ -493,7 +551,19 @@
   color: var(--text-dark);
   font-family: var(--font-body);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--motion-standard), border-color var(--motion-standard), color var(--motion-standard), box-shadow var(--motion-standard), transform var(--motion-fast);
+}
+
+.student-chip:hover,
+.assigned-student:hover {
+  border-color: var(--level-color, var(--primary-blue));
+  box-shadow: 0 6px 14px -10px rgba(15, 23, 42, 0.45);
+  transform: translateY(-1px);
+}
+
+.student-chip:active,
+.assigned-student:active {
+  transform: translateY(0);
 }
 
 .student-chip {
@@ -518,6 +588,11 @@
   border-color: var(--primary-blue);
   color: #ffffff;
   box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.8);
+}
+
+.student-chip.selected:hover {
+  border-color: var(--primary-blue);
+  box-shadow: 0 12px 22px -10px rgba(37, 99, 235, 0.8);
 }
 
 .student-chip.selected span {
@@ -556,7 +631,7 @@
   border: 2px solid var(--primary-blue);
   border-radius: 14px;
   box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.2);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border-color var(--motion-standard), box-shadow var(--motion-standard), transform var(--motion-standard), opacity var(--motion-standard);
 }
 
 .room-card.ready {
@@ -679,6 +754,8 @@
 .assigned-student-view:hover {
   border-color: var(--border-color);
   color: var(--text-dark);
+  box-shadow: none;
+  transform: none;
 }
 
 @media (max-width: 900px) {
@@ -770,6 +847,12 @@
   border-color: #94a3b8;
 }
 
+.room-card.locked .room-field input,
+.room-card.locked .room-field select,
+.room-card.locked .room-header-label input {
+  cursor: not-allowed;
+}
+
 .room-card.locked .room-lock-button {
   color: var(--text-dark);
 }
@@ -843,6 +926,11 @@
 
 .room-delete-button:hover {
   background: rgba(197, 34, 31, 0.12);
+}
+
+.room-delete-button:focus-visible {
+  outline: 3px solid rgba(197, 34, 31, 0.2);
+  outline-offset: 2px;
 }
 
 .add-room-button {

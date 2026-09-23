@@ -45,8 +45,8 @@ const emptyStudentForm = {
   totalHours: 12,
 };
 
-const initialRooms = Array.from({ length: 3 }, (_, index) => ({
-  id: index + 1,
+const createEmptyRoom = (id) => ({
+  id,
   teacher: '',
   classroom: '',
   lesson: '',
@@ -54,7 +54,9 @@ const initialRooms = Array.from({ length: 3 }, (_, index) => ({
   level: 'B - Beginner',
   studentIds: [],
   locked: false,
-}));
+});
+
+const initialRooms = Array.from({ length: 3 }, (_, index) => createEmptyRoom(index + 1));
 
 const LEVEL_COLORS = {
   'B - Beginner': '#22c55e',
@@ -102,6 +104,35 @@ const buildReservationsForDate = (isoDate) => {
 };
 
 const formatBlock = (startHour) => `${String(startHour).padStart(2, '0')}:00 - ${String(startHour + 1).padStart(2, '0')}:00`;
+
+const getDisplayLabel = (activeTab, today, tomorrow) => {
+  if (activeTab === 'tomorrow') {
+    return tomorrow;
+  }
+
+  return today;
+};
+
+const getRoomsTitle = (nextClassHour, isRoomViewMode) => {
+  if (nextClassHour === undefined) {
+    return 'No hay una próxima clase pendiente de acomodar.';
+  }
+
+  const formattedHour = `${String(nextClassHour).padStart(2, '0')}:00`;
+
+  if (isRoomViewMode) {
+    return `${formattedHour} hrs`;
+  }
+
+  return `Acomodando clase de las ${formattedHour} hrs`;
+};
+
+const getRoomCardClassName = (room, selectedStudentId) => {
+  const canReceiveStudent = selectedStudentId && !room.locked;
+  const cardClassName = canReceiveStudent ? 'room-card ready' : 'room-card';
+
+  return room.locked ? `${cardClassName} locked` : cardClassName;
+};
 
 const Reception = () => {
   const today = useMemo(() => getDateLabel(0), []);
@@ -195,7 +226,8 @@ const Reception = () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [query, students]);
 
-  const displayLabel = activeTab === 'today' ? today : activeTab === 'tomorrow' ? tomorrow : today;
+  const displayLabel = getDisplayLabel(activeTab, today, tomorrow);
+  const showReceptionToolbar = !(activeTab === 'rooms' && isRoomViewMode);
 
   const handleStudentFieldChange = (event) => {
     const { name, value } = event.target;
@@ -303,26 +335,21 @@ const Reception = () => {
         return room;
       }
 
-      return field === 'class' && value !== 'Class'
-        ? { ...room, class: value, lesson: '' }
-        : { ...room, [field]: value };
+      if (field === 'class' && value !== 'Class') {
+        return { ...room, class: value, lesson: '' };
+      }
+
+      return { ...room, [field]: value };
     }));
   };
 
   const addRoom = () => {
-    setRooms((currentRooms) => [
-      ...currentRooms,
-      {
-        id: Math.max(0, ...currentRooms.map((room) => room.id)) + 1,
-        teacher: '',
-        classroom: '',
-        lesson: '',
-        class: '',
-        level: 'B - Beginner',
-        studentIds: [],
-        locked: false,
-      },
-    ]);
+    setRooms((currentRooms) => {
+      const highestRoomId = Math.max(0, ...currentRooms.map((room) => room.id));
+      const newRoom = createEmptyRoom(highestRoomId + 1);
+
+      return [...currentRooms, newRoom];
+    });
   };
 
   const toggleRoomLock = (roomId) => {
@@ -366,6 +393,15 @@ const Reception = () => {
   const resetRoomAssignments = () => {
     setRooms((currentRooms) => currentRooms.map((room) => ({ ...room, studentIds: [] })));
     setSelectedStudentId(null);
+  };
+
+  const toggleStudentForm = () => {
+    if (isStudentFormOpen) {
+      closeStudentForm();
+      return;
+    }
+
+    openStudentForm();
   };
 
   const getReservationById = (studentId) => (
@@ -427,7 +463,7 @@ const Reception = () => {
         </button>
       </div>
 
-      {!(activeTab === 'rooms' && isRoomViewMode) && <section className="reception-toolbar">
+      {showReceptionToolbar && <section className="reception-toolbar">
         <label className="search-field" htmlFor="reservation-search">
           <span>Buscar</span>
           <input
@@ -463,7 +499,7 @@ const Reception = () => {
           <div className="rooms-header">
             <div>
               {!isRoomViewMode && <p className="eyebrow rooms-eyebrow">Acomodo manual</p>}
-              <h2>{nextClassHour === undefined ? 'No hay una próxima clase pendiente de acomodar.' : isRoomViewMode ? `${String(nextClassHour).padStart(2, '0')}:00 hrs` : `Acomodando clase de las ${String(nextClassHour).padStart(2, '0')}:00 hrs`}</h2>
+              <h2>{getRoomsTitle(nextClassHour, isRoomViewMode)}</h2>
             </div>
             <div className="rooms-header-actions">
               {!isRoomViewMode && (
@@ -555,7 +591,7 @@ const Reception = () => {
                 {rooms.map((room) => (
                   <article
                     key={room.id}
-                    className={`${selectedStudentId && !room.locked ? 'room-card ready' : 'room-card'}${room.locked ? ' locked' : ''}`}
+                    className={getRoomCardClassName(room, selectedStudentId)}
                     onClick={() => !room.locked && handleRoomClick(room.id)}
                   >
                     <div className="room-card-header">
@@ -706,7 +742,7 @@ const Reception = () => {
             <button
               type="button"
               className="btn-primary"
-              onClick={() => (isStudentFormOpen ? closeStudentForm() : openStudentForm())}
+              onClick={toggleStudentForm}
             >
               {isStudentFormOpen ? 'Cancelar' : '+ Registrar alumno'}
             </button>

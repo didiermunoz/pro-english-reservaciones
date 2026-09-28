@@ -7,6 +7,7 @@
   color: #0f172a;
 }
 
+/* === Brand panel === */
 .brandPanel {
   position: relative;
   display: flex;
@@ -87,6 +88,7 @@
   text-transform: uppercase;
 }
 
+/* === Login form === */
 .formPanel {
   display: flex;
   align-items: center;

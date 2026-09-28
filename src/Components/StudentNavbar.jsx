@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import StudentBrand from './StudentBrand'
 
-const navigationItems = [
-  ['Inicio / Agenda', '/dashboard', true],
-  ['Mi Plan de Estudios', '/plan-de-estudios'],
-  ['Mis Clases Confirmadas', '/mis-clases'],
-  ['Detalles de Contrato', '/mi-contrato'],
-  ['Contacto Recepción', '/soporte'],
+const NAVIGATION_ITEMS = [
+  { label: 'Inicio / Agenda', href: '/dashboard', isActive: true },
+  { label: 'Mi Plan de Estudios', href: '/plan-de-estudios', isActive: false },
+  { label: 'Mis Clases Confirmadas', href: '/mis-clases', isActive: false },
+  { label: 'Detalles de Contrato', href: '/mi-contrato', isActive: false },
+  { label: 'Contacto Recepción', href: '/soporte', isActive: false },
 ]
 
 export default function StudentNavbar({ onNavigate }) {
@@ -25,7 +25,9 @@ export default function StudentNavbar({ onNavigate }) {
     <header className="student-navbar">
       <StudentBrand />
       <nav className="student-nav" aria-label="Navegación principal">
-        {navigationItems.map(([label, href, active]) => <a className={active ? 'active' : ''} href={href} key={href}>{label}</a>)}
+        {NAVIGATION_ITEMS.map(({ label, href, isActive }) => (
+          <a className={isActive ? 'active' : ''} href={href} key={href}>{label}</a>
+        ))}
       </nav>
       <div className="student-account">
         <div className="student-avatar" aria-hidden="true">DM</div>

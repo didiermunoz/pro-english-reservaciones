@@ -1,3 +1,4 @@
+/* === Theme tokens === */
 :root {
   --primary-blue: #2563eb;
   --primary-gradient: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
@@ -9,9 +10,10 @@
   --border-color: #e2e8f0;
   --shadow-sm: 0 4px 12px rgba(37, 99, 235, 0.08);
   --font-heading: 'Poppins', 'Inter', system-ui, sans-serif;
---font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* === Profile overview === */
 .profile-container {
   max-width: 980px;
   margin: 0 auto;
@@ -246,6 +248,7 @@
   }
 }
 
+/* === Classes and history === */
 .section-header-actions {
   display: flex;
   justify-content: space-between;

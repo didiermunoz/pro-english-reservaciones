@@ -14,6 +14,7 @@
   --motion-standard: 0.2s ease;
 }
 
+/* === Reception navigation and filters === */
 .reception-shell {
   max-width: 1200px;
   margin: 0 auto;
@@ -412,6 +413,7 @@
   font-size: 0.9rem;
 }
 
+/* === Room assignment === */
 .rooms-panel {
   background: var(--surface-white);
   border: 1px solid var(--border-color);
@@ -814,6 +816,7 @@
   }
 }
 
+/* === Room controls and display === */
 .room-card-actions {
   display: flex;
   align-items: center;

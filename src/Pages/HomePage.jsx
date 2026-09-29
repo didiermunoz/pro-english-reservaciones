@@ -31,6 +31,7 @@ export default function HomePage({ onNavigate }) {
   const studentHours = Number(currentStudent?.contract?.weeklyHours || 0)
   const scheduleClosed = simulatedHour >= 20
 
+  // Fechas derivadas
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = getMonday(new Date())
     date.setDate(date.getDate() + index)
@@ -39,14 +40,17 @@ export default function HomePage({ onNavigate }) {
 
   const selectableDates = useMemo(() => getSelectableDates(new Date()).map((date) => ({
     date,
-    dateKey: toDateKey(date),
     day: weekDayNames[date.getDay()],
     label: formatDate(date),
     key: toDateKey(date),
   })), [])
 
+  // Slots
   const slotsByDate = useMemo(() => selectableDates.reduce((slots, { date, key }) => {
-    slots[key] = createSlots(date, date.getDay() === 6 ? 8 : 7, date.getDay() === 6 ? 15 : 20)
+    const isSaturday = date.getDay() === SATURDAY
+    const startHour = isSaturday ? SATURDAY_START_HOUR : WEEKDAY_START_HOUR
+    const endHour = isSaturday ? SATURDAY_END_HOUR : WEEKDAY_END_HOUR
+    slots[key] = createSlots(date, startHour, endHour)
     return slots
   }, {}), [selectableDates])
 

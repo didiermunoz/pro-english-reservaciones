@@ -1,4 +1,4 @@
-const statusLabels = {
+const STATUS_LABELS = {
   full: 'Lleno',
   booked: 'Reservado',
   selected: 'Elegido',
@@ -6,7 +6,7 @@ const statusLabels = {
   available: 'Disponible',
 }
 
-const statusSymbols = {
+const STATUS_SYMBOLS = {
   full: '×',
   booked: '✓',
   selected: '✓',
@@ -15,11 +15,28 @@ const statusSymbols = {
 }
 
 function ScheduleGuide() {
-  return <div className="schedule-guide" aria-label="Pasos para agendar una clase"><span className="guide-step"><b>1</b><strong>Elige tus horarios</strong></span><span className="guide-arrow" aria-hidden="true">→</span><span className="guide-step"><b>2</b><strong>Revisa tu selección</strong></span><span className="guide-arrow" aria-hidden="true">→</span><span className="guide-step"><b>3</b><strong>Confirma 6 horas</strong></span></div>
+  return (
+    <div className="schedule-guide" aria-label="Pasos para agendar una clase">
+      <span className="guide-step"><b>1</b><strong>Elige tus horarios</strong></span>
+      <span className="guide-arrow" aria-hidden="true">→</span>
+      <span className="guide-step"><b>2</b><strong>Revisa tu selección</strong></span>
+      <span className="guide-arrow" aria-hidden="true">→</span>
+      <span className="guide-step"><b>3</b><strong>Confirma 6 horas</strong></span>
+    </div>
+  )
 }
 
 function TimeRail({ scheduleHours, formatHour }) {
-  return <div className="time-rail"><div className="rail-heading">Hora</div>{scheduleHours.map((hour) => <div className="rail-hour" key={hour}>{formatHour(hour)} - {formatHour(hour + 1)}</div>)}</div>
+  return (
+    <div className="time-rail">
+      <div className="rail-heading">Hora</div>
+      {scheduleHours.map((hour) => (
+        <div className="rail-hour" key={hour}>
+          {formatHour(hour)} - {formatHour(hour + 1)}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function DayColumn({ day, dateLabel, daySlots, scheduleHours, getSlotStatus, onSlotToggle, confirmed }) {

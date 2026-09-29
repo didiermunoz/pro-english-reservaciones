@@ -125,7 +125,7 @@ a { color: inherit; }
 .time-slot span { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid #bfdbfe; border-radius: 50%; color: var(--primary-blue); font-size: .95rem; font-weight: 900; }
 .time-slot small { color: var(--text-muted); font-size: .7rem; font-weight: 800; }
 .time-slot.available:hover { background: #eff6ff; box-shadow: inset 4px 0 0 var(--primary-blue); transform: translateX(2px); }
-.time-slot.selected { color: var(--text-dark); background: #dbeafe; box-shadow: inset 5px 0 0 var(--primary-blue); }
+.time-slot.selected, .time-slot.booked { color: var(--text-dark); background: #dbeafe; box-shadow: inset 5px 0 0 var(--primary-blue); }
 .time-slot.selected span { color: #fff; border-color: var(--primary-blue); background: var(--primary-blue); }
 .time-slot.selected small { color: var(--text-dark); }
 .time-slot.full { color: var(--accent-red); background: #fef2f2; cursor: not-allowed; }

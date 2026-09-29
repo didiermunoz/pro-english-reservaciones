@@ -11,7 +11,7 @@ export const formatDate = (date) => new Intl.DateTimeFormat('es-MX', {
   month: 'short',
 }).format(date).replace('.', '')
 
-export const toDateKey = (date) => date.toISOString().slice(0, 10)
+export const toDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 export const getMonday = (date) => {
   const monday = new Date(date)

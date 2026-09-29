@@ -1,911 +1,345 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import './reception.css';
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../../Services/api'
+import { useStudent } from '../../Services/useStudent'
+import './reception.css'
+import './reception-api.css'
 
-const baseStudents = [
-  { student: 'José Ramírez', studentId: '2048', level: 'A - Advanced' },
-  { student: 'Diego Lara', studentId: '4444', level: 'A - Advanced' },
-  { student: 'Didier Camargo', studentId: '5665', level: 'A - Advanced' },
-  { student: 'Diego Torres', studentId: '2256', level: 'A - Advanced' },
-  { student: 'Valeria Gómez', studentId: '4411', level: 'B - Beginner' },
-  { student: 'Mateo Ruiz', studentId: '5637', level: 'I - Intermediate' },
-  { student: 'Andrea Flores', studentId: '7823', level: 'A - Advanced' },
-  { student: 'Fernando Silva', studentId: '9014', level: 'B - Beginner' },
-  { student: 'Lucía Mendoza', studentId: '3142', level: 'B - Beginner' },
-  { student: 'Pablo Ortega', studentId: '6285', level: 'I - Intermediate' },
-  { student: 'Sofía Navarro', studentId: '7391', level: 'A - Advanced' },
-  { student: 'Raúl Castillo', studentId: '8450', level: 'B - Beginner' },
-  { student: 'Camila Ríos', studentId: '1576', level: 'I - Intermediate' },
-  { student: 'Nicolás Vega', studentId: '2684', level: 'A - Advanced' },
-  { student: 'Mariana Cruz', studentId: '3795', level: 'B - Beginner' },
-  { student: 'Hugo Salas', studentId: '4806', level: 'I - Intermediate' },
-  { student: 'Elena Fuentes', studentId: '5917', level: 'A - Advanced' },
-  { student: 'Jorge Molina', studentId: '6028', level: 'B - Beginner' },
-  { student: 'Paula Reyes', studentId: '7139', level: 'I - Intermediate' },
-  { student: 'Iván Campos', studentId: '8240', level: 'A - Advanced' },
-  { student: 'Daniela León', studentId: '9351', level: 'B - Beginner' },
-  { student: 'Óscar Pineda', studentId: '1462', level: 'I - Intermediate' },
-  { student: 'Gabriela Soto', studentId: '2573', level: 'A - Advanced' },
-];
+const todayKey = () => {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+}
 
-const initialStudents = [
-  { id: '2048', name: 'José Ramírez', level: 'A - Advanced', availableHours: 8, totalHours: 12, tempPassword: 'x7K9pQ', mustChangePassword: true },
-  { id: '4444', name: 'Diego Lara', level: 'A - Advanced', availableHours: 7, totalHours: 12, tempPassword: 'Q3mN8s', mustChangePassword: true },
-  { id: '5665', name: 'Didier Camargo', level: 'A - Advanced', availableHours: 6, totalHours: 10, tempPassword: 'L2gR5t', mustChangePassword: true },
-  { id: '2256', name: 'Diego Torres', level: 'A - Advanced', availableHours: 5, totalHours: 9, tempPassword: 'H8dW2k', mustChangePassword: true },
-  { id: '4411', name: 'Valeria Gómez', level: 'B - Beginner', availableHours: 9, totalHours: 14, tempPassword: 'N4fT7q', mustChangePassword: true },
-  { id: '5637', name: 'Mateo Ruiz', level: 'I - Intermediate', availableHours: 7, totalHours: 11, tempPassword: 'P6wX2m', mustChangePassword: true },
-];
+const emptyForm = { matricula: '', name: '' }
+const emptyRoomForm = { name: '', morningTeacher: '', afternoonTeacher: '', capacity: 10 }
+const emptyLessonForm = { order: '', title: '', type: 'Leccion' }
 
-const emptyStudentForm = {
-  name: '',
-  id: '',
-  level: 'B - Beginner',
-  availableHours: 8,
-  totalHours: 12,
-};
+export default function Reception() {
+  const navigate = useNavigate()
+  const { token, user, logout } = useStudent()
+  const [tab, setTab] = useState('students')
+  const [students, setStudents] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [rooms, setRooms] = useState([])
+  const [lessons, setLessons] = useState([])
+  const [date, setDate] = useState(todayKey)
+  const [query, setQuery] = useState('')
+  const [form, setForm] = useState(emptyForm)
+  const [editingId, setEditingId] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [notice, setNotice] = useState('')
+  const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [roomForm, setRoomForm] = useState(emptyRoomForm)
+  const [editingRoomId, setEditingRoomId] = useState(null)
+  const [pendingRoomDelete, setPendingRoomDelete] = useState(null)
+  const [lessonForm, setLessonForm] = useState(emptyLessonForm)
+  const [editingLessonId, setEditingLessonId] = useState(null)
+  const [pendingLessonDelete, setPendingLessonDelete] = useState(null)
 
-const createEmptyRoom = (id) => ({
-  id,
-  teacher: '',
-  classroom: '',
-  lesson: '',
-  class: '',
-  level: 'B - Beginner',
-  studentIds: [],
-  locked: false,
-});
+  const loadStudents = useCallback(async () => {
+    const result = await api.receptionStudents(token)
+    setStudents(result.students || [])
+  }, [token])
 
-const initialRooms = Array.from({ length: 3 }, (_, index) => createEmptyRoom(index + 1));
+  const loadReservations = useCallback(async () => {
+    const result = await api.receptionReservations(token, date)
+    setReservations(result.reservations || [])
+  }, [token, date])
 
-const LEVEL_COLORS = {
-  'B - Beginner': '#22c55e',
-  'I - Intermediate': '#f59e0b',
-  'A - Advanced': '#2563eb',
-};
+  const loadRooms = useCallback(async () => {
+    const result = await api.receptionRooms(token)
+    setRooms(result.rooms || [])
+  }, [token])
 
-const generateTempPassword = () => {
-  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-  let password = '';
+  const loadLessons = useCallback(async () => {
+    const result = await api.receptionLessons(token)
+    setLessons(result.lessons || [])
+  }, [token])
 
-  for (let index = 0; index < 8; index += 1) {
-    password += characters[Math.floor(Math.random() * characters.length)];
-  }
-
-  return password;
-};
-
-const getDateLabel = (offsetDays = 0) => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + offsetDays);
-
-  return {
-    date,
-    iso: date.toISOString().split('T')[0],
-    formatted: date.toLocaleDateString('es-MX', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }),
-  };
-};
-
-const buildReservationsForDate = (isoDate) => {
-  const scheduleHours = [8, 9, 10, 11, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 16, 17, 18, 19];
-
-  return baseStudents.map((student, index) => ({
-    id: `${isoDate}-${index + 1}`,
-    ...student,
-    date: isoDate,
-    startHour: scheduleHours[index % scheduleHours.length],
-  }));
-};
-
-const formatBlock = (startHour) => `${String(startHour).padStart(2, '0')}:00 - ${String(startHour + 1).padStart(2, '0')}:00`;
-
-const getDisplayLabel = (activeTab, today, tomorrow) => {
-  if (activeTab === 'tomorrow') {
-    return tomorrow;
-  }
-
-  return today;
-};
-
-const getRoomsTitle = (nextClassHour, isRoomViewMode) => {
-  if (nextClassHour === undefined) {
-    return 'No hay una próxima clase pendiente de acomodar.';
-  }
-
-  const formattedHour = `${String(nextClassHour).padStart(2, '0')}:00`;
-
-  if (isRoomViewMode) {
-    return `${formattedHour} hrs`;
-  }
-
-  return `Acomodando clase de las ${formattedHour} hrs`;
-};
-
-const getRoomCardClassName = (room, selectedStudentId) => {
-  const canReceiveStudent = selectedStudentId && !room.locked;
-  const cardClassName = canReceiveStudent ? 'room-card ready' : 'room-card';
-
-  return room.locked ? `${cardClassName} locked` : cardClassName;
-};
-
-const Reception = () => {
-  const today = useMemo(() => getDateLabel(0), []);
-  const tomorrow = useMemo(() => getDateLabel(1), []);
-  const [activeTab, setActiveTab] = useState('today');
-  const [query, setQuery] = useState('');
-  const [selectedHour, setSelectedHour] = useState('all');
-  const [students, setStudents] = useState(initialStudents);
-  const [isStudentFormOpen, setIsStudentFormOpen] = useState(false);
-  const [studentNotice, setStudentNotice] = useState('');
-  const [editingStudentId, setEditingStudentId] = useState(null);
-  const [studentForm, setStudentForm] = useState(emptyStudentForm);
-  const [rooms, setRooms] = useState(initialRooms);
-  const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [isRoomViewMode, setIsRoomViewMode] = useState(false);
-
-  const todayReservations = useMemo(() => buildReservationsForDate(today.iso), [today.iso]);
-  const tomorrowReservations = useMemo(() => buildReservationsForDate(tomorrow.iso), [tomorrow.iso]);
-
-  const todayActiveReservations = useMemo(() => {
-    const currentDate = new Date();
-    const currentMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
-
-    return [...todayReservations]
-      .filter((reservation) => reservation.startHour * 60 >= currentMinutes)
-      .sort((a, b) => a.startHour - b.startHour);
-  }, [todayReservations]);
-
-  const activeReservations = useMemo(() => {
-    if (activeTab === 'today') {
-      return todayActiveReservations;
+  const reload = useCallback(async () => {
+    try {
+      await Promise.all([loadStudents(), loadReservations(), loadRooms(), loadLessons()])
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setLoading(false)
     }
+  }, [loadStudents, loadReservations, loadRooms, loadLessons])
 
-    return [...tomorrowReservations].sort((a, b) => a.startHour - b.startHour);
-  }, [activeTab, todayActiveReservations, tomorrowReservations]);
-
-  const nextClassHour = todayActiveReservations[0]?.startHour;
-  const nextClassReservations = useMemo(
-    () => todayActiveReservations.filter((reservation) => reservation.startHour === nextClassHour),
-    [nextClassHour, todayActiveReservations],
-  );
-  const assignedStudentIds = useMemo(
-    () => new Set(rooms.flatMap((room) => room.studentIds)),
-    [rooms],
-  );
-  const unassignedStudents = nextClassReservations.filter(
-    (reservation) => !assignedStudentIds.has(reservation.id),
-  );
-  const occupiedRooms = rooms.filter((room) => room.studentIds.length > 0);
-
-  const timeOptions = useMemo(() => {
-    const hours = [...new Set(activeReservations.map((item) => item.startHour))].sort((a, b) => a - b);
-    return hours.map((hour) => ({ value: String(hour), label: formatBlock(hour) }));
-  }, [activeReservations]);
-
-  const filteredReservations = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return [...activeReservations]
-      .filter((reservation) => {
-        if (selectedHour !== 'all' && reservation.startHour !== Number(selectedHour)) {
-          return false;
-        }
-
-        if (!normalizedQuery) {
-          return true;
-        }
-
-        return (
-          reservation.student.toLowerCase().includes(normalizedQuery) ||
-          reservation.studentId.toLowerCase().includes(normalizedQuery)
-        );
+  useEffect(() => {
+    let active = true
+    Promise.all([api.receptionStudents(token), api.receptionReservations(token, date), api.receptionRooms(token), api.receptionLessons(token)])
+      .then(([studentResult, reservationResult, roomResult, lessonResult]) => {
+        if (!active) return
+        setStudents(studentResult.students || [])
+        setReservations(reservationResult.reservations || [])
+        setRooms(roomResult.rooms || [])
+        setLessons(lessonResult.lessons || [])
       })
-      .sort((a, b) => a.startHour - b.startHour);
-  }, [activeReservations, query, selectedHour]);
-
-  const filteredStudents = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return [...students]
-      .filter((student) => {
-        if (!normalizedQuery) {
-          return true;
-        }
-
-        return (
-          student.name.toLowerCase().includes(normalizedQuery) ||
-          student.id.toLowerCase().includes(normalizedQuery)
-        );
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [query, students]);
-
-  const displayLabel = getDisplayLabel(activeTab, today, tomorrow);
-  const showReceptionToolbar = !(activeTab === 'rooms' && isRoomViewMode);
-
-  const handleStudentFieldChange = (event) => {
-    const { name, value } = event.target;
-    setStudentForm((current) => ({
-      ...current,
-      [name]: name === 'availableHours' || name === 'totalHours' ? Number(value) : value,
-    }));
-  };
-
-  const openStudentForm = (student = null) => {
-    setStudentNotice('');
-    setIsStudentFormOpen(true);
-
-    if (!student) {
-      setEditingStudentId(null);
-      setStudentForm(emptyStudentForm);
-      return;
+      .catch((error) => { if (active) setNotice(error.message) })
+      .finally(() => { if (active) setLoading(false) })
+    const interval = window.setInterval(() => {
+      Promise.all([loadStudents(), loadReservations(), loadRooms(), loadLessons()]).catch((error) => setNotice(error.message))
+    }, 30000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
     }
+  }, [token, date, loadStudents, loadReservations, loadRooms, loadLessons])
 
-    setEditingStudentId(student.id);
-    setStudentForm({
-      name: student.name,
-      id: student.id,
-      level: student.level,
-      availableHours: student.availableHours,
-      totalHours: student.totalHours,
-    });
-  };
+  const filteredStudents = students.filter((student) => (
+    `${student.name} ${student.matricula}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+  ))
+  const filteredReservations = reservations.filter((reservation) => (
+    `${reservation.student} ${reservation.studentId}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+  ))
+  const filteredLessons = lessons.filter((lesson) => (
+    `${lesson.title} ${lesson.order} ${lesson.type}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+  ))
 
-  const closeStudentForm = () => {
-    setIsStudentFormOpen(false);
-    setEditingStudentId(null);
-    setStudentForm(emptyStudentForm);
-  };
+  const startEdit = (student) => {
+    setEditingId(student.id)
+    setForm({ matricula: student.matricula, name: student.name })
+    setNotice('')
+    setTemporaryPassword('')
+  }
 
-  const handleStudentSubmit = (event) => {
-    event.preventDefault();
+  const resetForm = () => {
+    setEditingId(null)
+    setForm(emptyForm)
+  }
 
-    const normalizedName = studentForm.name.trim();
-    const normalizedId = studentForm.id.trim();
-
-    if (!normalizedName || !normalizedId) {
-      window.alert('Completa el nombre y ID del alumno.');
-      return;
+  const submitStudent = async (event) => {
+    event.preventDefault()
+    if (!form.matricula.trim() || !form.name.trim()) {
+      setNotice('Campos obligatorios incompletos.')
+      return
     }
-
-    const duplicateExists = students.some(
-      (student) => student.id === normalizedId && student.id !== editingStudentId,
-    );
-
-    if (duplicateExists) {
-      window.alert('Ya existe un alumno con ese ID.');
-      return;
-    }
-
-    const selectedStudent = students.find((student) => student.id === editingStudentId);
-    const generatedPassword = selectedStudent?.tempPassword || generateTempPassword();
-    const payload = {
-      id: normalizedId,
-      name: normalizedName,
-      level: studentForm.level,
-      availableHours: Number(studentForm.availableHours) || 0,
-      totalHours: Number(studentForm.totalHours) || 0,
-      tempPassword: generatedPassword,
-      mustChangePassword: true,
-    };
-
-    setStudents((currentStudents) => {
-      if (editingStudentId) {
-        return currentStudents.map((student) => (
-          student.id === editingStudentId ? { ...student, ...payload } : student
-        ));
+    setSaving(true)
+    setNotice('')
+    setTemporaryPassword('')
+    try {
+      if (editingId) {
+        await api.updateStudent(token, editingId, { matricula: form.matricula.trim(), name: form.name.trim() })
+        setNotice('Datos del estudiante actualizados.')
+      } else {
+        const result = await api.createStudent(token, { matricula: form.matricula.trim(), name: form.name.trim() })
+        setTemporaryPassword(result.temporaryPassword)
+        setNotice('Estudiante registrado. Entrega esta contraseña temporal para su primer acceso:')
       }
-
-      return [payload, ...currentStudents];
-    });
-
-    const actionLabel = editingStudentId ? 'Alumno actualizado.' : 'Alumno registrado.';
-    setStudentNotice(
-      `${actionLabel} Contraseña temporal: ${generatedPassword} — entrégasela para que la cambie al ingresar por primera vez.`
-    );
-    closeStudentForm();
-  };
-
-  const handleDeleteStudent = (studentId) => {
-    const student = students.find((item) => item.id === studentId);
-
-    if (!student) {
-      return;
+      resetForm()
+      await Promise.all([loadStudents(), loadReservations()])
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    const confirmed = window.confirm(`¿Eliminar al alumno ${student.name}?`);
-
-    if (!confirmed) {
-      return;
+  const deleteStudent = async () => {
+    if (!pendingDelete) return
+    setSaving(true)
+    setNotice('')
+    try {
+      await api.deleteStudent(token, pendingDelete.id)
+      setPendingDelete(null)
+      setNotice('Estudiante eliminado.')
+      await Promise.all([loadStudents(), loadReservations()])
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setStudents((currentStudents) => currentStudents.filter((item) => item.id !== studentId));
-    setStudentNotice('');
-  };
-
-  const handleRoomFieldChange = (roomId, field, value) => {
-    setRooms((currentRooms) => currentRooms.map((room) => {
-      if (room.id !== roomId) {
-        return room;
-      }
-
-      if (field === 'class' && value !== 'Class') {
-        return { ...room, class: value, lesson: '' };
-      }
-
-      return { ...room, [field]: value };
-    }));
-  };
-
-  const addRoom = () => {
-    setRooms((currentRooms) => {
-      const highestRoomId = Math.max(0, ...currentRooms.map((room) => room.id));
-      const newRoom = createEmptyRoom(highestRoomId + 1);
-
-      return [...currentRooms, newRoom];
-    });
-  };
-
-  const toggleRoomLock = (roomId) => {
-    setRooms((currentRooms) => currentRooms.map((room) => (
-      room.id === roomId ? { ...room, locked: !room.locked } : room
-    )));
-  };
-
-  const deleteRoom = (roomId) => {
-    const confirmed = window.confirm('¿Eliminar este salón?');
-
-    if (!confirmed) {
-      return;
+  const updateReservationStatus = async (reservation, status) => {
+    setSaving(true)
+    setNotice('')
+    try {
+      await api.updateReceptionReservation(token, reservation.id, status)
+      await Promise.all([loadStudents(), loadReservations()])
+      setNotice('Estado de asistencia actualizado.')
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setRooms((currentRooms) => currentRooms.filter((room) => room.id !== roomId));
-    setSelectedStudentId(null);
-  };
+  const editRoom = (room) => {
+    setEditingRoomId(room.id)
+    setRoomForm({ name: room.name, morningTeacher: room.morningTeacher, afternoonTeacher: room.afternoonTeacher, capacity: room.capacity })
+  }
 
-  const handleRoomClick = (roomId) => {
-    if (!selectedStudentId) {
-      return;
+  const saveRoom = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setNotice('')
+    try {
+      const payload = { ...roomForm, capacity: Number(roomForm.capacity) }
+      if (editingRoomId) await api.updateRoom(token, editingRoomId, payload)
+      else await api.createRoom(token, payload)
+      setRoomForm(emptyRoomForm)
+      setEditingRoomId(null)
+      setNotice(editingRoomId ? 'Salón actualizado.' : 'Salón registrado.')
+      await loadRooms()
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    setRooms((currentRooms) => currentRooms.map((room) => (
-      room.id === roomId
-        ? { ...room, studentIds: [...room.studentIds, selectedStudentId] }
-        : room
-    )));
-    setSelectedStudentId(null);
-  };
-
-  const removeStudentFromRoom = (roomId, studentId) => {
-    setRooms((currentRooms) => currentRooms.map((room) => (
-      room.id === roomId
-        ? { ...room, studentIds: room.studentIds.filter((id) => id !== studentId) }
-        : room
-    )));
-  };
-
-  const resetRoomAssignments = () => {
-    setRooms((currentRooms) => currentRooms.map((room) => ({ ...room, studentIds: [] })));
-    setSelectedStudentId(null);
-  };
-
-  const toggleStudentForm = () => {
-    if (isStudentFormOpen) {
-      closeStudentForm();
-      return;
+  const deleteRoom = async () => {
+    if (!pendingRoomDelete) return
+    setSaving(true)
+    try {
+      await api.deleteRoom(token, pendingRoomDelete.id)
+      setPendingRoomDelete(null)
+      setNotice('Salón eliminado.')
+      await loadRooms()
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
     }
+  }
 
-    openStudentForm();
-  };
+  const editLesson = (lesson) => {
+    setEditingLessonId(lesson.id)
+    setLessonForm({ order: lesson.order, title: lesson.title, type: lesson.type })
+  }
 
-  const getReservationById = (studentId) => (
-    nextClassReservations.find((reservation) => reservation.id === studentId)
-  );
+  const saveLesson = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setNotice('')
+    try {
+      const payload = { ...lessonForm, order: Number(lessonForm.order) }
+      if (editingLessonId) await api.updateLesson(token, editingLessonId, payload)
+      else await api.createLesson(token, payload)
+      setLessonForm(emptyLessonForm)
+      setEditingLessonId(null)
+      setNotice(editingLessonId ? 'Lección actualizada.' : 'Lección registrada.')
+      await loadLessons()
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteLesson = async () => {
+    if (!pendingLessonDelete) return
+    setSaving(true)
+    try {
+      await api.deleteLesson(token, pendingLessonDelete.id)
+      setPendingLessonDelete(null)
+      setNotice('Lección eliminada.')
+      await loadLessons()
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
-    <div className="reception-shell">
-      <div className="reception-header">
-        <div>
-          <p className="eyebrow">Reservas</p>
-          <h1>Recepción</h1>
+    <main className="reception-workspace">
+      <header className="reception-header">
+        <div><p className="eyebrow">GESTIÓN ACADÉMICA</p><h1>Recepción</h1><p>Sesión: {user.name}</p></div>
+        <button type="button" className="reception-logout" onClick={handleLogout}>Cerrar sesión</button>
+      </header>
+
+      <nav className="reception-tabs" aria-label="Módulos de recepción">
+        <button className={tab === 'students' ? 'active' : ''} type="button" onClick={() => setTab('students')}>Estudiantes <span>{students.length}</span></button>
+        <button className={tab === 'reservations' ? 'active' : ''} type="button" onClick={() => setTab('reservations')}>Reservas <span>{reservations.length}</span></button>
+        <button className={tab === 'rooms' ? 'active' : ''} type="button" onClick={() => setTab('rooms')}>Salones <span>{rooms.length}</span></button>
+        <button className={tab === 'lessons' ? 'active' : ''} type="button" onClick={() => setTab('lessons')}>Lecciones <span>{lessons.length}</span></button>
+      </nav>
+
+      {notice && <div className="reception-notice" role="status">{notice}{temporaryPassword && <strong className="temporary-password">{temporaryPassword}</strong>}</div>}
+
+      <section className="reception-panel">
+        <div className="reception-toolbar">
+          <label className="reception-search">Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o matrícula" /></label>
+          {tab === 'reservations' && <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>}
+          <button type="button" className="reception-refresh" disabled={loading} onClick={() => { setLoading(true); setNotice(''); reload() }}>{loading ? 'Consultando...' : 'Actualizar datos'}</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="date-pill">{displayLabel.formatted}</div>
-          <Link
-            to="/login"
-            style={{
-              color: '#ffffff',
-              textDecoration: 'none',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              opacity: 0.95,
-            }}
-          >
-            Volver al login
-          </Link>
-        </div>
-      </div>
 
-      <div className="tab-switcher" aria-label="Seleccionar tipo de información">
-        <button
-          type="button"
-          className={activeTab === 'today' ? 'tab-button active' : 'tab-button'}
-          onClick={() => setActiveTab('today')}
-        >
-          Hoy
-        </button>
-        <button
-          type="button"
-          className={activeTab === 'tomorrow' ? 'tab-button active' : 'tab-button'}
-          onClick={() => setActiveTab('tomorrow')}
-        >
-          Mañana
-        </button>
-        <button
-          type="button"
-          className={activeTab === 'students' ? 'tab-button active' : 'tab-button'}
-          onClick={() => setActiveTab('students')}
-        >
-          Alumnos
-        </button>
-        <button
-          type="button"
-          className={activeTab === 'rooms' ? 'tab-button active' : 'tab-button'}
-          onClick={() => setActiveTab('rooms')}
-        >
-          Salones
-        </button>
-      </div>
+        {tab === 'students' ? <div className="reception-management-grid">
+          <section className="reception-list-section">
+            <div className="reception-section-heading"><h2>Estudiantes registrados</h2><span>{filteredStudents.length} resultados</span></div>
+            {loading ? <p className="reception-empty">Cargando estudiantes...</p> : filteredStudents.length === 0 ? <p className="reception-empty">No hay estudiantes que coincidan con la búsqueda.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Matrícula</th><th>Nombre completo</th><th>Contrato</th><th>Reservas activas</th><th>Acciones</th></tr></thead><tbody>
+              {filteredStudents.map((student) => <tr key={student.id}>
+                <td>{student.matricula}</td><td>{student.name}</td>
+                <td>{student.contract ? `${student.contract.weeklyHours} h/semana · ${student.contract.modality}` : 'Sin contrato activo'}</td>
+                <td>{student.activeReservations}</td>
+                <td className="reception-row-actions"><button type="button" onClick={() => startEdit(student)}>Editar</button><button type="button" className="danger" onClick={() => setPendingDelete(student)}>Eliminar</button></td>
+              </tr>)}
+            </tbody></table></div>}
+          </section>
 
-      {showReceptionToolbar && <section className="reception-toolbar">
-        <label className="search-field" htmlFor="reservation-search">
-          <span>Buscar</span>
-          <input
-            id="reservation-search"
-            type="text"
-            placeholder={activeTab === 'students' ? 'Nombre o ID' : 'Nombre o ID'}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+          <form className="reception-student-form" onSubmit={submitStudent}>
+            <h2>{editingId ? 'Editar estudiante' : 'Registrar estudiante'}</h2>
+            <label htmlFor="student-matricula">Matrícula<input id="student-matricula" value={form.matricula} onChange={(event) => setForm({ ...form, matricula: event.target.value })} required /></label>
+            <label htmlFor="student-name">Nombre completo<input id="student-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+            {!editingId && <p>Se generará una contraseña temporal segura; se mostrará una sola vez al guardar.</p>}
+            <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar estudiante'}</button>
+            {editingId && <button className="secondary" type="button" onClick={resetForm}>Cancelar edición</button>}
+          </form>
+        </div> : tab === 'reservations' ? <section className="reception-list-section">
+          <div className="reception-section-heading"><h2>Reservas del {new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</h2><span>{filteredReservations.length} resultados</span></div>
+          {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
+            {filteredReservations.map((reservation) => <tr key={reservation.id}>
+              <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td>{reservation.status}</td>
+              <td><select value={reservation.status} disabled={saving} onChange={(event) => updateReservationStatus(reservation, event.target.value)}><option value="Confirmada">Pendiente</option><option value="Completada">Asistió</option><option value="Cancelada">Cancelada</option></select></td>
+            </tr>)}
+          </tbody></table></div>}
+        </section> : tab === 'rooms' ? <div className="reception-management-grid">
+          <section className="reception-list-section">
+            <div className="reception-section-heading"><h2>Salones registrados</h2><span>{rooms.length} resultados</span></div>
+            {loading ? <p className="reception-empty">Cargando salones...</p> : rooms.length === 0 ? <p className="reception-empty">No hay salones registrados.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Salón</th><th>Profesor mañana</th><th>Profesor tarde</th><th>Aforo</th><th>Acciones</th></tr></thead><tbody>
+              {rooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.morningTeacher}</td><td>{room.afternoonTeacher}</td><td>{room.capacity}</td><td className="reception-row-actions"><button type="button" onClick={() => editRoom(room)}>Editar</button><button type="button" className="danger" onClick={() => setPendingRoomDelete(room)}>Eliminar</button></td></tr>)}
+            </tbody></table></div>}
+          </section>
+          <form className="reception-student-form" onSubmit={saveRoom}>
+            <h2>{editingRoomId ? 'Editar salón' : 'Registrar salón'}</h2>
+            <label htmlFor="room-name">Nombre<input id="room-name" value={roomForm.name} onChange={(event) => setRoomForm({ ...roomForm, name: event.target.value })} required /></label>
+            <label htmlFor="room-morning">Profesor turno mañana<input id="room-morning" value={roomForm.morningTeacher} onChange={(event) => setRoomForm({ ...roomForm, morningTeacher: event.target.value })} required /></label>
+            <label htmlFor="room-afternoon">Profesor turno tarde<input id="room-afternoon" value={roomForm.afternoonTeacher} onChange={(event) => setRoomForm({ ...roomForm, afternoonTeacher: event.target.value })} required /></label>
+            <label htmlFor="room-capacity">Aforo máximo<input id="room-capacity" type="number" min="1" value={roomForm.capacity} onChange={(event) => setRoomForm({ ...roomForm, capacity: event.target.value })} required /></label>
+            <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingRoomId ? 'Guardar cambios' : 'Registrar salón'}</button>
+            {editingRoomId && <button className="secondary" type="button" onClick={() => { setEditingRoomId(null); setRoomForm(emptyRoomForm) }}>Cancelar edición</button>}
+          </form>
+        </div> : <div className="reception-management-grid">
+          <section className="reception-list-section">
+            <div className="reception-section-heading"><h2>Lecciones registradas</h2><span>{filteredLessons.length} resultados</span></div>
+            {loading ? <p className="reception-empty">Cargando lecciones...</p> : filteredLessons.length === 0 ? <p className="reception-empty">No hay lecciones registradas.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Orden</th><th>Título</th><th>Tipo</th><th>Acciones</th></tr></thead><tbody>
+              {filteredLessons.map((lesson) => <tr key={lesson.id}><td>{lesson.order}</td><td>{lesson.title}</td><td>{lesson.type}</td><td className="reception-row-actions"><button type="button" onClick={() => editLesson(lesson)}>Editar</button><button type="button" className="danger" onClick={() => setPendingLessonDelete(lesson)}>Eliminar</button></td></tr>)}
+            </tbody></table></div>}
+          </section>
+          <form className="reception-student-form" onSubmit={saveLesson}>
+            <h2>{editingLessonId ? 'Editar lección' : 'Registrar lección'}</h2>
+            <label htmlFor="lesson-order">Orden<input id="lesson-order" type="number" min="1" value={lessonForm.order} onChange={(event) => setLessonForm({ ...lessonForm, order: event.target.value })} required /></label>
+            <label htmlFor="lesson-title">Título<input id="lesson-title" value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} required /></label>
+            <label htmlFor="lesson-type">Tipo<select id="lesson-type" value={lessonForm.type} onChange={(event) => setLessonForm({ ...lessonForm, type: event.target.value })}><option value="Leccion">Lección</option><option value="Examen Escrito">Examen escrito</option><option value="Examen Oral">Examen oral</option><option value="Club Conversacion">Club de conversación</option></select></label>
+            <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingLessonId ? 'Guardar cambios' : 'Registrar lección'}</button>
+            {editingLessonId && <button className="secondary" type="button" onClick={() => { setEditingLessonId(null); setLessonForm(emptyLessonForm) }}>Cancelar edición</button>}
+          </form>
+        </div>}
+      </section>
 
-        {activeTab !== 'students' && (
-          <label className="filter-field" htmlFor="reservation-hour">
-            <span>Filtrar horario</span>
-            <select
-              id="reservation-hour"
-              value={selectedHour}
-              onChange={(event) => setSelectedHour(event.target.value)}
-            >
-              <option value="all">Todas las horas</option>
-              {timeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </section>}
-
-      {activeTab === 'rooms' ? (
-        <section className={`rooms-panel${isRoomViewMode ? ' rooms-panel-fullscreen' : ''}`}>
-          <div className="rooms-header">
-            <div>
-              {!isRoomViewMode && <p className="eyebrow rooms-eyebrow">Acomodo manual</p>}
-              <h2>{getRoomsTitle(nextClassHour, isRoomViewMode)}</h2>
-            </div>
-            <div className="rooms-header-actions">
-              {!isRoomViewMode && (
-                <button type="button" className="btn-secondary" onClick={resetRoomAssignments}>
-                  Reiniciar acomodo
-                </button>
-              )}
-              <button type="button" className="btn-secondary" onClick={() => setIsRoomViewMode((current) => !current)}>
-                {isRoomViewMode ? 'Modo edición' : 'Modo vista'}
-              </button>
-            </div>
-          </div>
-
-          {isRoomViewMode ? (
-            occupiedRooms.length === 0 ? (
-              <div className="rooms-view-empty">Aún no hay salones asignados para esta hora.</div>
-            ) : (
-              <div className="rooms-grid rooms-grid-view">
-                {occupiedRooms.map((room) => (
-                  <article key={room.id} className="room-card room-card-view">
-                    <div className="room-view-header">
-                      <strong>Classroom {room.classroom || room.id}</strong>
-                      <span>Teacher: {room.teacher || 'Sin asignar'}</span>
-                      <span className="room-view-level" style={{ '--level-color': LEVEL_COLORS[room.level] }}>
-                        <span className="level-swatch" />{room.level.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="room-view-details">
-                      <div><span>Clase</span><strong>{room.class || 'Sin asignar'}</strong></div>
-                      {room.lesson && (
-                        <div><span>Lección</span><strong>{room.lesson}</strong></div>
-                      )}
-                    </div>
-                    <div className="assigned-students room-view-students">
-                      {room.studentIds.map((studentId) => {
-                        const student = getReservationById(studentId);
-
-                        return student ? (
-                          <div
-                            key={student.id}
-                            className="assigned-student assigned-student-view"
-                            style={{ '--level-color': LEVEL_COLORS[student.level] }}
-                          >
-                            <strong>{student.studentId}</strong>
-                            <span className="student-level-marker">
-                              <span className="level-swatch" />{student.level.charAt(0)}
-                            </span>
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )
-          ) : nextClassHour !== undefined && (
-            <>
-              <div className="student-pool">
-                <div className="pool-heading">
-                  <h3>Alumnos por acomodar</h3>
-                  <span>{unassignedStudents.length} pendientes</span>
-                </div>
-                <div className="level-legend" aria-label="Niveles por color">
-                  <span className="level-legend-item"><span className="level-swatch" style={{ '--level-color': LEVEL_COLORS['B - Beginner'] }} />B Beginner</span>
-                  <span className="level-legend-item"><span className="level-swatch" style={{ '--level-color': LEVEL_COLORS['I - Intermediate'] }} />I Intermediate</span>
-                  <span className="level-legend-item"><span className="level-swatch" style={{ '--level-color': LEVEL_COLORS['A - Advanced'] }} />A Advanced</span>
-                </div>
-                {unassignedStudents.length === 0 ? (
-                  <p className="pool-empty">Todos los alumnos están acomodados.</p>
-                ) : (
-                  <div className="student-chips">
-                    {unassignedStudents.map((student) => (
-                      <button
-                        key={student.id}
-                        type="button"
-                        className={selectedStudentId === student.id ? 'student-chip selected' : 'student-chip'}
-                        style={{ '--level-color': LEVEL_COLORS[student.level] }}
-                        onClick={() => setSelectedStudentId(student.id)}
-                      >
-                        <strong>{student.studentId}</strong>
-                        <span>{student.level.charAt(0)}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="rooms-grid">
-                {rooms.map((room) => (
-                  <article
-                    key={room.id}
-                    className={getRoomCardClassName(room, selectedStudentId)}
-                    onClick={() => !room.locked && handleRoomClick(room.id)}
-                  >
-                    <div className="room-card-header">
-                      <label className="room-header-label">
-                        <span>Classroom</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={room.classroom}
-                          disabled={room.locked}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => handleRoomFieldChange(room.id, 'classroom', event.target.value)}
-                          placeholder={String(room.id)}
-                        />
-                      </label>
-                      <div className="room-card-actions">
-                        <span>{room.studentIds.length} alumnos</span>
-                        <button
-                          type="button"
-                          className="room-lock-button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleRoomLock(room.id);
-                          }}
-                        >
-                          {room.locked ? 'Desbloquear' : 'Bloquear salón'}
-                        </button>
-                        <button
-                          type="button"
-                          className="room-delete-button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            deleteRoom(room.id);
-                          }}
-                          aria-label={`Eliminar salón ${room.classroom || room.id}`}
-                          title="Eliminar salón"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    <div className="room-fields">
-                      <label className="room-field">
-                        <span>Teacher</span>
-                        <input
-                          type="text"
-                          value={room.teacher}
-                          disabled={room.locked}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => handleRoomFieldChange(room.id, 'teacher', event.target.value)}
-                          placeholder="Nombre del maestro"
-                        />
-                      </label>
-                      <label className="room-field">
-                        <span>Clase</span>
-                        <select
-                          value={room.class}
-                          disabled={room.locked}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => handleRoomFieldChange(room.id, 'class', event.target.value)}
-                        >
-                          <option value="">Seleccionar clase</option>
-                          <option value="Class">Class</option>
-                          <option value="Club">Club</option>
-                          <option value="Rosetta">Rosetta</option>
-                          <option value="Chat">Chat</option>
-                          <option value="Examen">Examen</option>
-                        </select>
-                      </label>
-                      {room.class === 'Class' && (
-                        <label className="room-field">
-                          <span>Número de lección</span>
-                          <input
-                            type="number"
-                            min="1"
-                            value={room.lesson}
-                            disabled={room.locked}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => handleRoomFieldChange(room.id, 'lesson', event.target.value)}
-                            placeholder="Ej. 4"
-                          />
-                        </label>
-                      )}
-                      <label className="room-field">
-                        <span>Level</span>
-                        <select
-                          value={room.level}
-                          disabled={room.locked}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => handleRoomFieldChange(room.id, 'level', event.target.value)}
-                        >
-                          <option value="B - Beginner">B - Beginner</option>
-                          <option value="I - Intermediate">I - Intermediate</option>
-                          <option value="A - Advanced">A - Advanced</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div className="assigned-students">
-                      {room.studentIds.length === 0 ? (
-                        <p className="assigned-empty">Sin alumnos asignados</p>
-                      ) : (
-                        room.studentIds.map((studentId) => {
-                          const student = getReservationById(studentId);
-
-                          return student ? (
-                            <button
-                              key={student.id}
-                              type="button"
-                              className="assigned-student"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                if (!room.locked) {
-                                  removeStudentFromRoom(room.id, student.id);
-                                }
-                              }}
-                              title="Regresar al pool"
-                            >
-                              <strong>{student.studentId}</strong>
-                              <span className="student-level-marker" style={{ '--level-color': LEVEL_COLORS[student.level] }}>
-                                <span className="level-swatch" />{student.level.charAt(0)} ×
-                              </span>
-                            </button>
-                          ) : null;
-                        })
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-              <button type="button" className="add-room-button" onClick={addRoom}>
-                + Agregar salón
-              </button>
-            </>
-          )}
-        </section>
-      ) : activeTab === 'students' ? (
-        <section className="reception-panel student-panel">
-          <div className="panel-header">
-            <h2>Alumnos</h2>
-            <span>
-              {filteredStudents.length} {filteredStudents.length === 1 ? 'alumno' : 'alumnos'}
-            </span>
-          </div>
-
-          {studentNotice && <div className="notice-banner">{studentNotice}</div>}
-
-          <div className="student-toolbar">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={toggleStudentForm}
-            >
-              {isStudentFormOpen ? 'Cancelar' : '+ Registrar alumno'}
-            </button>
-          </div>
-
-          {isStudentFormOpen && (
-            <form className="student-form" onSubmit={handleStudentSubmit}>
-              <div className="student-form-grid">
-                <label className="search-field" htmlFor="student-name">
-                  <span>Nombre</span>
-                  <input
-                    id="student-name"
-                    name="name"
-                    type="text"
-                    value={studentForm.name}
-                    onChange={handleStudentFieldChange}
-                    placeholder="Nombre completo"
-                  />
-                </label>
-
-                <label className="search-field" htmlFor="student-id">
-                  <span>ID</span>
-                  <input
-                    id="student-id"
-                    name="id"
-                    type="text"
-                    value={studentForm.id}
-                    onChange={handleStudentFieldChange}
-                    placeholder="Ej. 2048"
-                  />
-                </label>
-
-                <label className="search-field" htmlFor="student-level">
-                  <span>Nivel</span>
-                  <select
-                    id="student-level"
-                    name="level"
-                    value={studentForm.level}
-                    onChange={handleStudentFieldChange}
-                  >
-                    <option value="B - Beginner">B - Beginner</option>
-                    <option value="I - Intermediate">I - Intermediate</option>
-                    <option value="A - Advanced">A - Advanced</option>
-                  </select>
-                </label>
-
-                <label className="search-field" htmlFor="student-hours">
-                  <span>Horas disponibles</span>
-                  <input
-                    id="student-hours"
-                    name="availableHours"
-                    type="number"
-                    min="0"
-                    value={studentForm.availableHours}
-                    onChange={handleStudentFieldChange}
-                  />
-                </label>
-
-                <label className="search-field" htmlFor="student-total-hours">
-                  <span>Horas totales</span>
-                  <input
-                    id="student-total-hours"
-                    name="totalHours"
-                    type="number"
-                    min="0"
-                    value={studentForm.totalHours}
-                    onChange={handleStudentFieldChange}
-                  />
-                </label>
-              </div>
-
-              <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={closeStudentForm}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-primary">
-                  {editingStudentId ? 'Guardar cambios' : 'Guardar alumno'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {filteredStudents.length === 0 ? (
-            <div className="empty-state">No hay alumnos encontrados</div>
-          ) : (
-            <div className="student-list">
-              {filteredStudents.map((student) => (
-                <article key={student.id} className="student-card">
-                  <div className="student-main">
-                    <div>
-                      <p className="label">Alumno</p>
-                      <h3>{student.name}</h3>
-                    </div>
-                    <span className="level-badge">{student.level}</span>
-                  </div>
-
-                  <div className="student-meta">
-                    <div>
-                      <p className="label">Matrícula</p>
-                      <strong>{student.id}</strong>
-                    </div>
-                    <div>
-                      <p className="label">Horas</p>
-                      <strong>
-                        {student.availableHours} / {student.totalHours}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="student-actions">
-                    <button type="button" className="student-action-button edit" onClick={() => openStudentForm(student)}>
-                      Editar Alumno
-                    </button>
-                    <button type="button" className="student-action-button delete" onClick={() => handleDeleteStudent(student.id)}>
-                      Eliminar
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className="reception-panel">
-          <div className="panel-header">
-            <h2>Proximas clases</h2>
-            <span>
-              {filteredReservations.length} {filteredReservations.length === 1 ? 'reserva' : 'reservas'}
-            </span>
-          </div>
-
-          {filteredReservations.length === 0 ? (
-            <div className="empty-state">No hay reservas encontradas</div>
-          ) : (
-            <div className="reservation-list">
-              {filteredReservations.map((reservation) => (
-                <article key={reservation.id} className="reservation-card">
-                  <div className="reservation-main">
-                    <div>
-                      <p className="label">Alumno</p>
-                      <h3>{reservation.student}</h3>
-                    </div>
-                    <span className="level-badge">{reservation.level}</span>
-                  </div>
-
-                  <div className="reservation-meta">
-                    <div>
-                      <p className="label">Matrícula</p>
-                      <strong>{reservation.studentId}</strong>
-                    </div>
-                    <div>
-                      <p className="label">Bloque</p>
-                      <strong>{formatBlock(reservation.startHour)}</strong>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-};
-
-export default Reception;
+      {pendingDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-heading"><h2 id="delete-heading">Eliminar estudiante</h2><p>Se eliminará a {pendingDelete.name} y sus reservas asociadas.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteStudent}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingDelete(null)}>Cancelar</button></div></section></div>}
+      {pendingRoomDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-room-heading"><h2 id="delete-room-heading">Eliminar salón</h2><p>¿Eliminar {pendingRoomDelete.name}? Los salones con reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteRoom}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingRoomDelete(null)}>Cancelar</button></div></section></div>}
+      {pendingLessonDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-lesson-heading"><h2 id="delete-lesson-heading">Eliminar lección</h2><p>¿Eliminar “{pendingLessonDelete.title}”? Las lecciones asociadas a reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteLesson}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingLessonDelete(null)}>Cancelar</button></div></section></div>}
+    </main>
+  )
+}

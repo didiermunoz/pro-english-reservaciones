@@ -1,207 +1,158 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import './Profile.css';
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { formatHour } from '../../../Services/scheduleUtils'
+import { useStudent } from '../../../Services/useStudent'
+import './Profile.css'
+import './ProfileApi.css'
 
-export const Profile = ({ onNavigate }) => {
-  const [students] = useState([
-    {
-      id: '1234',
-      name: 'Carlos Mendoza',
-      level: 'I - Intermediate',
-    },
-    {
-      id: '5678',
-      name: 'Ana Sofia Gómez',
-      level: 'B - Beginner',
+const formatDate = (dateKey) => new Date(`${dateKey}T12:00:00`).toLocaleDateString('es-MX', {
+  day: 'numeric', month: 'long', year: 'numeric',
+})
+
+const groupReservations = (reservations) => reservations.reduce((groups, reservation) => {
+  const previous = groups[groups.length - 1]
+  if (previous && previous.dateKey === reservation.dateKey && previous.endHour === reservation.startHour) {
+    previous.endHour = reservation.endHour
+    previous.ids.push(reservation.id)
+    previous.time = `${formatHour(previous.startHour)} - ${formatHour(previous.endHour)}`
+    return groups
+  }
+  groups.push({
+    id: reservation.id,
+    ids: [reservation.id],
+    dateKey: reservation.dateKey,
+    title: reservation.lesson,
+    startHour: reservation.startHour,
+    endHour: reservation.endHour,
+    time: `${formatHour(reservation.startHour)} - ${formatHour(reservation.endHour)}`,
+  })
+  return groups
+}, [])
+
+export const Profile = () => {
+  const navigate = useNavigate()
+  const { currentStudent, reservations, updateProfile, cancelReservations, logout } = useStudent()
+  const [nameDraft, setNameDraft] = useState(null)
+  const name = nameDraft ?? currentStudent.name
+  const [editing, setEditing] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [pendingCancellation, setPendingCancellation] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const weeklyLimit = Number(currentStudent.contract?.weeklyHours || 0)
+
+  const currentWeek = useMemo(() => {
+    const today = new Date()
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+    monday.setHours(0, 0, 0, 0)
+    const end = new Date(monday)
+    end.setDate(end.getDate() + 7)
+    const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    return { start: dateKey(monday), end: dateKey(end) }
+  }, [])
+
+  const activeReservations = reservations.filter((item) => item.status === 'Confirmada')
+  const weeklyHoursUsed = reservations
+    .filter((item) => ['Confirmada', 'Completada'].includes(item.status))
+    .filter((item) => item.dateKey >= currentWeek.start && item.dateKey < currentWeek.end)
+    .reduce((total, item) => total + item.endHour - item.startHour, 0)
+  const upcomingClasses = groupReservations(activeReservations)
+  const pastClasses = reservations.filter((item) => item.status === 'Completada')
+  const weeklyPercent = weeklyLimit > 0 ? Math.min((weeklyHoursUsed / weeklyLimit) * 100, 100) : 0
+
+  const saveProfile = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    setNotice('')
+    try {
+      await updateProfile({ name })
+      setNameDraft(null)
+      setEditing(false)
+      setNotice('Perfil actualizado correctamente.')
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setLoading(false)
     }
-  ]);
+  }
 
-  const [studentIndex, setStudentIndex] = useState(0);
-  const currentStudent = students[studentIndex];
-
-  const [upcomingClasses, setUpcomingClasses] = useState([
-    {
-      id: 1,
-      title: 'Clase Presencial',
-      date: '2026-09-09',
-      formattedDate: '09 de Septiembre, 2026',
-      time: '16:00 - 17:00',
-    },
-    {
-      id: 2,
-      title: 'Clase Presencial',
-      date: '2026-09-09',
-      formattedDate: '09 de Septiembre, 2026',
-      time: '17:00 - 18:00',
-    },
-  ]);
-
-  const [pastClasses] = useState([
-    {
-      id: 101,
-      title: 'Clase Presencial',
-      date: '2026-09-02',
-      formattedDate: '02 de Septiembre, 2026',
-      time: '16:00 - 17:00',
-    },
-  ]);
-
-  const MAX_WEEKLY_HOURS = 6;
-
-  const handleCancelClass = (classItem) => {
-    const classDate = new Date(classItem.date);
-    const today = new Date();
-    const diffTime = classDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 1) {
-      alert('Las cancelaciones deben realizarse con al menos 1 día de anticipación.');
-      return;
+  const handleCancel = async () => {
+    if (!pendingCancellation) return
+    setLoading(true)
+    setNotice('')
+    try {
+      await cancelReservations(pendingCancellation.ids)
+      setPendingCancellation(null)
+      setNotice('Clase cancelada correctamente.')
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    const confirmCancel = window.confirm(
-      `¿Deseas cancelar la clase del ${classItem.formattedDate}? Se abonará 1 hora a tu balance.`
-    );
-
-    if (confirmCancel) {
-      setUpcomingClasses((prev) => prev.filter((c) => c.id !== classItem.id));
-      alert('Clase cancelada exitosamente.');
-    }
-  };
-
-  const weeklyHoursUsed = upcomingClasses.length;
-  const weeklyPercent = Math.min((weeklyHoursUsed / MAX_WEEKLY_HOURS) * 100, 100);
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="profile-container">
-      <div className="demo-switcher">
-        <small>Cambiar alumno de prueba: </small>
-        <button
-          className={studentIndex === 0 ? 'active' : ''}
-          onClick={() => setStudentIndex(0)}
-        >
-          Alumno 1 (1234)
-        </button>
-        <button
-          className={studentIndex === 1 ? 'active' : ''}
-          onClick={() => setStudentIndex(1)}
-        >
-          Alumno 2 (5678)
-        </button>
-      </div>
-              {/* boton de volver a inicio */}
-      <div className="profile-cta-row">
-        <Link className="profile-home-button" to="/home">
-          Ir a Inicio
-        </Link>
-      </div>
-
-
+      <div className="profile-cta-row"><Link className="profile-home-button" to="/home">Ir a Inicio</Link></div>
       <header className="profile-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
-          <div className="profile-avatar">
-            {currentStudent.name.split(' ').map((n) => n[0]).join('')}
-          </div>
+        <div className="profile-identity-block">
+          <div className="profile-avatar">{currentStudent.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2)}</div>
           <div className="profile-info">
             <h2>{currentStudent.name}</h2>
             <div className="profile-tags">
-              <span className="badge-id">ID alumno: {currentStudent.id}</span>
-              <span className="badge-level">Nivel: {currentStudent.level}</span>
+              <span className="badge-id">Matrícula: {currentStudent.matricula}</span>
+              <span className="badge-level">Estudiante</span>
             </div>
           </div>
         </div>
-        <Link
-          to="/login"
-          style={{
-            color: '#ffffff',
-            textDecoration: 'none',
-            fontSize: '0.82rem',
-            fontWeight: 700,
-            opacity: 0.95,
-          }}
-        >
-          Cerrar sesión
-        </Link>
+        <button className="profile-logout-button" type="button" onClick={handleLogout}>Cerrar sesión</button>
       </header>
+
+      {notice && <p className="profile-alert" role="status">{notice}</p>}
 
       <section className="stats-grid stats-grid-single">
         <div className="stat-card stat-card-highlight">
-          <div className="stat-header">
-            <h3>Límite de horas semanal</h3>
-            <span className="stat-chip">Escuela</span>
-          </div>
-          <div className="stat-value">
-            {weeklyHoursUsed} <span>/ {MAX_WEEKLY_HOURS} hrs</span>
-          </div>
-          <p className="stat-subtext">
-            {weeklyHoursUsed >= MAX_WEEKLY_HOURS
-              ? 'Alcanzaste tu límite de esta semana'
-              : `Puedes agendar ${MAX_WEEKLY_HOURS - weeklyHoursUsed} hrs más esta semana`}
-          </p>
-          <div className="progress-bar">
-            <div
-              className={`progress-fill ${weeklyPercent >= 100 ? 'warning' : ''}`}
-              style={{ width: `${weeklyPercent}%` }}
-            ></div>
-          </div>
+          <div className="stat-header"><h3>Horas reservadas esta semana</h3><span className="stat-chip">Contrato</span></div>
+          <div className="stat-value">{weeklyHoursUsed} <span>/ {weeklyLimit} hrs</span></div>
+          <p className="stat-subtext">{weeklyLimit ? `Puedes agendar ${Math.max(0, weeklyLimit - weeklyHoursUsed)} hrs más esta semana` : 'No hay un contrato activo asociado.'}</p>
+          <div className="progress-bar"><div className={`progress-fill ${weeklyPercent >= 100 ? 'warning' : ''}`} style={{ width: `${weeklyPercent}%` }} /></div>
         </div>
       </section>
 
       <div className="profile-layout">
         <section className="main-content">
-          <div className="section-header-actions">
-            <h3>Próximas Clases</h3>
-          </div>
+          <div className="section-header-actions"><h3>Información del perfil</h3><button className="btn-cancel" type="button" onClick={() => setEditing((value) => !value)}>{editing ? 'Cancelar edición' : 'Editar nombre'}</button></div>
+          {editing ? <form className="profile-edit-form" onSubmit={saveProfile}>
+            <label htmlFor="profile-name">Nombre completo<input id="profile-name" value={name} onChange={(event) => setNameDraft(event.target.value)} required /></label>
+            <button className="profile-home-button" type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Guardar cambios'}</button>
+          </form> : <p className="notice-banner">{currentStudent.name} · {currentStudent.matricula}</p>}
 
-          <p className="notice-banner">
-            📌 Puedes cancelar una clase hasta un día antes de la fecha programada. Para agendar nuevas clases, ve a la sección de inicio.
-          </p>
+          <div className="section-header-actions"><h3>Próximas clases</h3></div>
+          {upcomingClasses.length === 0 ? <div className="empty-card"><p>No tienes clases confirmadas.</p></div> : <div className="classes-stack">
+            {upcomingClasses.map((item) => <div key={item.id} className="class-item">
+              <div className="class-info"><h4>{item.title}</h4><p>Fecha: {formatDate(item.dateKey)}</p><p>Horario: {item.time}</p></div>
+              <button className="btn-cancel" type="button" disabled={loading} onClick={() => setPendingCancellation(item)}>Cancelar bloque ({item.ids.length} {item.ids.length === 1 ? 'hora' : 'horas'})</button>
+            </div>)}
+          </div>}
 
-          {upcomingClasses.length === 0 ? (
-            <div className="empty-card">
-              <p>No tienes clases agendadas actualmente.</p>
-            </div>
-          ) : (
-            <div className="classes-stack">
-              {upcomingClasses.map((item) => (
-                <div key={item.id} className="class-item">
-                  <div className="class-info">
-                    <h4>{item.title}</h4>
-                    <p>📅 {item.formattedDate}</p>
-                    <p>⏰ {item.time}</p>
-                  </div>
-                  <div className="class-actions">
-                    <button
-                      className="btn-cancel"
-                      onClick={() => handleCancelClass(item)}
-                    >
-                      Cancelar clase
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {pendingCancellation && <div className="profile-confirm" role="alertdialog" aria-label="Confirmar cancelación">
+            <span>¿Cancelar {pendingCancellation.ids.length} {pendingCancellation.ids.length === 1 ? 'hora' : 'horas'} del {formatDate(pendingCancellation.dateKey)}?</span>
+            <button type="button" disabled={loading} onClick={handleCancel}>{loading ? 'Procesando...' : 'Confirmar cancelación'}</button>
+            <button type="button" onClick={() => setPendingCancellation(null)}>Conservar</button>
+          </div>}
         </section>
 
-        <aside className="sidebar-content">
-          <div className="side-card">
-            <h3>Historial de Clases</h3>
-            {pastClasses.length === 0 ? (
-              <p className="stat-subtext">Aún no tienes clases registradas en tu historial.</p>
-            ) : (
-              <ul className="history-simple-list">
-                {pastClasses.map((item) => (
-                  <li key={item.id} className="history-simple-item">
-                    <strong>{item.title}</strong>
-                    <small>📅 {item.formattedDate} · ⏰ {item.time}</small>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
+        <aside className="sidebar-content"><div className="side-card"><h3>Historial de clases</h3>
+          {pastClasses.length === 0 ? <p className="stat-subtext">No hay clases completadas registradas.</p> : <ul className="history-simple-list">
+            {pastClasses.map((item) => <li key={item.id} className="history-simple-item"><strong>{item.lesson}</strong><small>{formatDate(item.dateKey)} · {formatHour(item.startHour)} - {formatHour(item.endHour)}</small></li>)}
+          </ul>}
+        </div></aside>
       </div>
     </div>
-  );
-};
+  )
+}

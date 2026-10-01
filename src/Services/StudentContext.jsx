@@ -7,8 +7,8 @@ export function StudentProvider({ children }) {
   const [session, setSession] = useState(getStoredAuthSession)
   const [user, setUser] = useState(session?.user || null)
   const [reservations, setReservations] = useState([])
-  const [resolvedToken, setResolvedToken] = useState(null)
-  const loadingSession = Boolean(session?.token && resolvedToken !== session.token)
+  const [resolvedToken, setResolvedToken] = useState(session?.token || null)
+  const [loadingSession, setLoadingSession] = useState(Boolean(session?.token))
 
   const acceptSession = useCallback((payload) => {
     const nextSession = { token: payload.token, user: payload.user }
@@ -24,20 +24,31 @@ export function StudentProvider({ children }) {
     setUser(null)
     setReservations([])
     setResolvedToken(null)
+    setLoadingSession(false)
   }, [])
 
   const token = session?.token || null
 
   const refreshSession = useCallback(async () => {
-    if (!token) return
-    const payload = await api.me(token)
-    setUser(payload.user)
-    setReservations(payload.reservations || [])
-    const nextSession = { ...session, user: payload.user }
-    saveAuthSession(nextSession)
-    setSession(nextSession)
-    setResolvedToken(token)
-  }, [session, token])
+    if (!token) {
+      setLoadingSession(false)
+      return
+    }
+    setLoadingSession(true)
+    try {
+      const payload = await api.me(token)
+      setUser(payload.user)
+      setReservations(payload.reservations || [])
+      const nextSession = { ...session, user: payload.user }
+      saveAuthSession(nextSession)
+      setSession(nextSession)
+      setResolvedToken(token)
+    } catch {
+      logout()
+    } finally {
+      setLoadingSession(false)
+    }
+  }, [session, token, logout])
 
   const createReservations = useCallback(async (slots, modality) => {
     const payload = await api.createReservations(token, slots, modality)
@@ -65,9 +76,10 @@ export function StudentProvider({ children }) {
       const nextSession = getStoredAuthSession()
       setSession(nextSession)
       setUser(nextSession?.user || null)
+      setResolvedToken(nextSession?.token || null)
+      setLoadingSession(Boolean(nextSession?.token))
       if (!nextSession) {
         setReservations([])
-        setResolvedToken(null)
       }
     }
     window.addEventListener('pro-english-auth-change', handleSessionChange)
@@ -76,27 +88,33 @@ export function StudentProvider({ children }) {
 
   useEffect(() => {
     let active = true
-    if (!token) return undefined
-    const syncWithApi = () => {
-      api.me(token)
-        .then((payload) => {
-          if (!active) return
-          setUser(payload.user)
-          if (payload.reservations) setReservations(payload.reservations)
-          const storedSession = getStoredAuthSession()
-          const nextSession = { ...storedSession, user: payload.user }
-          saveAuthSession(nextSession)
-          setSession(nextSession)
-          setResolvedToken(token)
-        })
-        .catch(() => { if (active) logout() })
+    if (!token) {
+      setLoadingSession(false)
+      return undefined
+    }
+    const syncWithApi = async () => {
+      setLoadingSession(true)
+      try {
+        const payload = await api.me(token)
+        if (!active) return
+        setUser(payload.user)
+        if (payload.reservations) setReservations(payload.reservations)
+        const storedSession = getStoredAuthSession()
+        const nextSession = { ...storedSession, user: payload.user }
+        saveAuthSession(nextSession)
+        setSession(nextSession)
+        setResolvedToken(token)
+      } catch {
+        if (active) logout()
+      } finally {
+        if (active) setLoadingSession(false)
+      }
     }
     syncWithApi()
     const interval = window.setInterval(() => syncWithApi(), 30000)
     const onFocus = () => syncWithApi()
     window.addEventListener('focus', onFocus)
     window.addEventListener('pro-english-refresh', onFocus)
-    setLoadingSession(true)
     return () => {
       active = false
       window.clearInterval(interval)

@@ -45,7 +45,7 @@ function DayColumn({ day, dateLabel, daySlots, scheduleHours, getSlotStatus, onS
     <div className="slot-list">{scheduleHours.map((hour) => {
       const slot = daySlots.find((daySlot) => daySlot.hour === hour)
       const status = getSlotStatus(slot)
-      return <button aria-label={`${day}, ${slot ? slot.time : 'No disponible'}`} aria-pressed={status === 'selected' || status === 'booked'} className={`time-slot ${status}`} disabled={status === 'full' || status === 'booked' || status === 'unavailable' || confirmed} key={`${day}-${hour}`} onClick={() => onSlotToggle(slot)} type="button"><span>{statusSymbols[status]}</span><small>{statusLabels[status]}</small></button>
+      return <button aria-label={`${day}, ${slot ? slot.time : 'No disponible'}`} aria-pressed={status === 'selected' || status === 'booked'} className={`time-slot ${status}`} disabled={status === 'full' || status === 'booked' || status === 'unavailable' || confirmed} key={`${day}-${hour}`} onClick={() => onSlotToggle(slot)} type="button"><span>{STATUS_SYMBOLS[status]}</span><small>{STATUS_LABELS[status]}</small></button>
     })}</div>
   </div>
 }

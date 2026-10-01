@@ -17,11 +17,11 @@ Crea `.env` a partir de `.env.example` y configura `DB_HOST`, `DB_PORT`, `DB_NAM
 
 Si la base ya contiene estas tablas, no vuelvas a ejecutar el DDL completo. El servidor espera `estudiantes`, `recepcion`, `contratos`, `reservas`, `lecciones` y `salones`, con las columnas definidas en `database/schema.sql`.
 
-Instala dependencias y abre dos terminales:
+Instala dependencias y abre dos terminales. Para la demo usa `npm run dev:api:demo`; para desarrollo normal sin autoconfiguración usa `npm run dev:api`:
 
 ```sh
 npm install
-npm run dev:api
+npm run dev:api:demo
 npm run dev
 ```
 
@@ -31,7 +31,9 @@ Comprueba `GET /api/health` para verificar que MySQL está conectado. `npm run b
 
 Si `recepcion` está vacía, configura `BOOTSTRAP_RECEPTION_USERNAME`, `BOOTSTRAP_RECEPTION_NAME` y una contraseña privada de al menos 12 caracteres en `.env`, ejecuta `npm run bootstrap:reception` una sola vez y retira la contraseña del archivo. El comando se niega a crear cuentas si ya existe una. No se incluye un usuario de demostración ni una contraseña predecible.
 
-Después inicia sesión en Recepción y registra al menos un salón y una lección para habilitar reservaciones. Los cinco estudiantes/contratos existentes se leen directamente de MySQL; sus contraseñas son los valores originales cuyos hashes bcrypt ya están guardados.
+El comando `npm run dev:api:demo` activa `DEMO_AUTO_SETUP=true`. Después de un login válido de estudiante, la API crea en MySQL un contrato activo de 6 horas semanales (modalidad híbrida, vigencia de un año) solo si ese alumno no tiene uno, además de crear un salón y una lección solo si esas tablas están vacías. El modo normal está deshabilitado por defecto y la preparación nunca se ejecuta con `NODE_ENV=production`. Puedes cambiar las horas con `DEMO_CONTRACT_WEEKLY_HOURS`.
+
+Sin el modo demo, inicia sesión en Recepción y registra al menos un salón y una lección para habilitar reservaciones. Con el modo demo, esos recursos se crean automáticamente en MySQL solo cuando las tablas están vacías. Los estudiantes y contratos existentes se consultan directamente de la base de datos.
 
 ## Autenticación y permisos
 

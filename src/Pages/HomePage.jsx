@@ -10,6 +10,12 @@ import { api } from '../Services/api'
 import { useStudent } from '../Services/useStudent'
 import './HomePage.css'
 
+const SATURDAY = 6
+const WEEKDAY_START_HOUR = 7
+const WEEKDAY_END_HOUR = 20
+const SATURDAY_START_HOUR = 8
+const SATURDAY_END_HOUR = 15
+
 const scheduleHours = Array.from({ length: 13 }, (_, index) => index + 7)
 const createSlots = (date, startHour, endHour) => Array.from({ length: endHour - startHour }, (_, index) => {
   const hour = startHour + index
@@ -56,7 +62,7 @@ export default function HomePage({ onNavigate }) {
 
   useEffect(() => {
     let active = true
-    const refreshAvailability = () => api.availability(token, selectableDates.map((date) => date.dateKey))
+    const refreshAvailability = () => api.availability(token, selectableDates.map((date) => date.key))
       .then((payload) => {
         if (!active) return
         const slots = payload.slots || []

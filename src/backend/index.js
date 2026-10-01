@@ -107,6 +107,56 @@ async function getStaff(userId) {
   return rows[0] ? { id: rows[0].id, name: rows[0].nombre, username: rows[0].usuario, role: 'reception' } : null
 }
 
+async function ensureDemoSetup(studentId) {
+  if (process.env.NODE_ENV === 'production' || process.env.DEMO_AUTO_SETUP !== 'true') return
+
+  const connection = await pool.getConnection()
+  let lockAcquired = false
+  try {
+    const [lockRows] = await connection.query("SELECT GET_LOCK('pro_english_demo_setup', 10) AS acquired")
+    lockAcquired = Number(lockRows[0].acquired) === 1
+    if (!lockAcquired) throw Object.assign(new Error('No se pudo preparar la sesión de demostración.'), { status: 503 })
+
+    await connection.beginTransaction()
+    const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ? FOR UPDATE', [studentId])
+    if (!students[0]) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
+
+    const [contracts] = await connection.query('SELECT id FROM contratos WHERE estudiante_id = ? AND activo = TRUE LIMIT 1', [studentId])
+    if (!contracts[0]) {
+      const weeklyHours = Math.max(1, Math.min(20, Number(process.env.DEMO_CONTRACT_WEEKLY_HOURS) || 6))
+      await connection.query(
+        `INSERT INTO contratos (estudiante_id, horas_semanales, modalidad, fecha_inicio, fecha_fin, activo)
+         VALUES (?, ?, 'Hibrida', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), TRUE)`,
+        [studentId, weeklyHours],
+      )
+    }
+
+    const [rooms] = await connection.query('SELECT id FROM salones LIMIT 1')
+    if (!rooms[0]) {
+      await connection.query(
+        'INSERT INTO salones (nombre_salon, profesor_manana, profesor_tarde, capacidad_maxima) VALUES (?, ?, ?, ?)',
+        ['Salón Demo', 'Instructor Demo', 'Instructor Demo', 10],
+      )
+    }
+
+    const [lessons] = await connection.query('SELECT id FROM lecciones LIMIT 1')
+    if (!lessons[0]) {
+      const [orderRows] = await connection.query('SELECT COALESCE(MAX(orden), 0) + 1 AS nextOrder FROM lecciones')
+      await connection.query(
+        'INSERT INTO lecciones (orden, titulo, tipo) VALUES (?, ?, ?)',
+        [Number(orderRows[0].nextOrder), 'Lección de demostración', 'Leccion'],
+      )
+    }
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    if (lockAcquired) await connection.query("SELECT RELEASE_LOCK('pro_english_demo_setup')")
+    connection.release()
+  }
+}
+
 app.get('/api/health', asyncRoute(async (_req, res) => {
   await pool.query('SELECT 1')
   const counts = {}
@@ -140,6 +190,7 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const student = rows[0]
   if (!student) return sendError(res, 404, 'La matrícula introducida no está registrada.', 'USER_NOT_FOUND')
   if (!(await bcrypt.compare(password, student.password))) return sendError(res, 401, 'La contraseña es incorrecta.', 'INVALID_PASSWORD')
+  await ensureDemoSetup(student.id)
   const details = await getStudent(student.id)
   const user = serializeStudent(details)
   const reservations = await getStudentReservations(student.id)

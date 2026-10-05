@@ -10,6 +10,7 @@ export default function LoginPage() {
   const { acceptSession } = useStudent()
   const [matricula, setMatricula] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mode, setMode] = useState('reception')
@@ -87,16 +88,27 @@ export default function LoginPage() {
 
             <label htmlFor="password">
               Contraseña
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Ingresa tu contraseña"
-                autoComplete="current-password"
-                required
-              />
+              <span className={styles.passwordField}>
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Ingresa tu contraseña"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  className={styles.passwordToggle}
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  <span className={`${styles.eyeIcon} ${showPassword ? styles.eyeVisible : ''}`} aria-hidden="true" />
+                </button>
+              </span>
             </label>
 
             <button className={styles.submitButton} type="submit" disabled={loading}>

@@ -1,5 +1,4 @@
 const SUNDAY = 0
-const FRIDAY = 5
 const SATURDAY = 6
 const SUNDAY_TO_MONDAY_OFFSET = 6
 
@@ -29,21 +28,11 @@ export const getMonday = (date) => {
   return monday
 }
 
-function getBookableDayOffsets(dayOfWeek) {
-  // Friday opens Saturday and Monday; Saturday opens only Monday; other days open the next two days.
-  if (dayOfWeek === FRIDAY) return [1, 3]
-  if (dayOfWeek === SATURDAY) return [2]
-  return [1, 2]
-}
-
 /** Returns the bookable dates relative to the current day of the week. */
 export const getSelectableDates = (currentDate) => {
-  const dayOfWeek = currentDate.getDay()
-  const offsets = getBookableDayOffsets(dayOfWeek)
-  return offsets.map((offset) => {
-    const date = new Date(currentDate)
-    date.setDate(date.getDate() + offset)
-    date.setHours(0, 0, 0, 0)
-    return date
-  })
+  const offset = currentDate.getDay() === SATURDAY ? 2 : 1
+  const date = new Date(currentDate)
+  date.setDate(date.getDate() + offset)
+  date.setHours(0, 0, 0, 0)
+  return [date]
 }

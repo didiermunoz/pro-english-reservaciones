@@ -52,7 +52,7 @@ function DayColumn({ day, dateLabel, daySlots, scheduleHours, getSlotStatus, onS
 
 export default function ScheduleSection({ selectableDates, scheduleHours, slotsByDate, formatHour, getSlotStatus, onSlotToggle, confirmed }) {
   return <section className="schedule-section" aria-labelledby="schedule-title">
-    <div className="schedule-header"><div><span className="eyebrow">PRÓXIMAS FECHAS DISPONIBLES</span><h2 id="schedule-title">Agenda tus próximas clases</h2><p>Solo puedes reservar el siguiente día de clases y el posterior según el día actual.</p></div><div className="schedule-rule">{selectableDates.length === 1 ? 'Sábado: solo se habilita el lunes' : 'Fechas habilitadas para reservar'}</div></div>
+    <div className="schedule-header"><div><span className="eyebrow">PRÓXIMA FECHA DISPONIBLE</span><h2 id="schedule-title">Agenda tus próximas clases</h2><p>Solo puedes reservar el siguiente día de clases.</p></div><div className="schedule-rule">{`Reservando para ${selectableDates[0].day} ${selectableDates[0].label}`}</div></div>
     <ScheduleGuide />
     <div className="schedule-scroll"><div className={`schedule-grid days-${selectableDates.length}`}><TimeRail scheduleHours={scheduleHours} formatHour={formatHour} />{selectableDates.map((date) => <DayColumn confirmed={confirmed} dateLabel={date.label} day={date.day} daySlots={slotsByDate[date.key]} getSlotStatus={getSlotStatus} key={date.key} onSlotToggle={onSlotToggle} scheduleHours={scheduleHours} />)}</div></div>
     <div className="schedule-legend" aria-label="Leyenda de disponibilidad"><span><i className="legend-dot available-dot" />Disponible</span><span><i className="legend-dot selected-dot" />Seleccionado / reservado</span><span><i className="legend-dot full-dot" />Sin cupo</span></div>

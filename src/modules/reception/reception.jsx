@@ -312,7 +312,7 @@ export default function Reception() {
           <div className="reception-section-heading"><h2>Reservas del {new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</h2><span>{filteredReservations.length} resultados</span></div>
           {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
             {filteredReservations.map((reservation) => <tr key={reservation.id}>
-              <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td>{reservation.status}</td>
+              <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td className={`reservation-status status-${reservation.status.toLowerCase()}`}>{reservation.status}</td>
               <td><select value={reservation.status} disabled={saving} onChange={(event) => updateReservationStatus(reservation, event.target.value)}><option value="Confirmada">Pendiente</option><option value="Completada">Asistió</option><option value="Cancelada">Cancelada</option></select></td>
             </tr>)}
           </tbody></table></div>}

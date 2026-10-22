@@ -21,6 +21,11 @@ app.use(express.json({ limit: '100kb' }))
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 const sendError = (res, status, message, code) => res.status(status).json({ message, code })
 
+async function getBookableDateKey() {
+  const [rows] = await pool.query("SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL IF(DAYOFWEEK(CURDATE()) = 7, 2, 1) DAY), '%Y-%m-%d') AS bookable")
+  return rows[0].bookable
+}
+
 function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
   if (!token) return sendError(res, 401, 'Inicia sesión para continuar.', 'AUTH_REQUIRED')
@@ -325,7 +330,8 @@ app.get('/api/student/reservations', authenticate, requireStudentReady, asyncRou
 }))
 
 app.get('/api/student/availability', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
-  const dates = String(req.query.dates || '').split(',').filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)).slice(0, 7)
+  const bookableDateKey = await getBookableDateKey()
+  const dates = String(req.query.dates || '').split(',').filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date === bookableDateKey).slice(0, 7)
   if (!dates.length) return sendError(res, 400, 'Selecciona fechas válidas.', 'INVALID_DATES')
   const placeholders = dates.map(() => '?').join(', ')
   const [roomRows] = await pool.query('SELECT COALESCE(SUM(capacidad_maxima), 0) AS capacity FROM salones')
@@ -364,12 +370,14 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
     await connection.beginTransaction()
     const [lessons] = await connection.query('SELECT id FROM lecciones ORDER BY orden LIMIT 1')
     if (!lessons[0]) throw Object.assign(new Error('No hay lecciones configuradas.'), { status: 409 })
+    const bookableDateKey = await getBookableDateKey()
     for (const slot of slots) {
       const dateKey = String(slot.dateKey || slot.id || '').slice(0, 10)
       const startHour = Number(slot.hour)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isInteger(startHour) || startHour < 7 || startHour > 19) {
         throw Object.assign(new Error('Horario inválido.'), { status: 400 })
       }
+      if (dateKey !== bookableDateKey) throw Object.assign(new Error('Solo puedes reservar para el siguiente día de clases.'), { status: 400 })
       const [countRows] = await connection.query(
         `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
          AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3)`,
@@ -410,6 +418,8 @@ app.patch('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute
   const dateKey = String(req.body.dateKey || '').slice(0, 10)
   const startHour = Number(req.body.startHour)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isInteger(startHour) || startHour < 7 || startHour > 19) return sendError(res, 400, 'Rango de horario inválido.', 'INVALID_SLOT')
+  const bookableDateKey = await getBookableDateKey()
+  if (dateKey !== bookableDateKey) throw Object.assign(new Error('Solo puedes reservar para el siguiente día de clases.'), { status: 400 })
   const student = await getStudent(req.auth.userId)
   if (!student?.horas_semanales) return sendError(res, 409, 'No hay un contrato activo con horas disponibles.', 'CONTRACT_REQUIRED')
   const [current] = await pool.query("SELECT id FROM reservas WHERE id = ? AND estudiante_id = ? AND estado = 'Confirmada'", [req.params.id, req.auth.userId])

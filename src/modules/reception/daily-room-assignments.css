@@ -294,3 +294,221 @@
   .tv-room-card { overflow: visible; }
   .tv-teachers { grid-template-columns: 1fr; }
 }
+
+/* === Modern theme overrides === */
+.daily-assignments-page,
+.reception-tv-page {
+  --rc-blue: #2563eb;
+  --rc-blue-dark: #1e40af;
+  --rc-ink: #0f172a;
+  --rc-muted: #64748b;
+  --rc-border: #e2e8f0;
+  --rc-surface: #fff;
+  --rc-soft: #f8fafc;
+  --rc-green: #22c55e;
+  --rc-shadow: 0 16px 42px rgba(15, 23, 42, .07), 0 2px 8px rgba(15, 23, 42, .035);
+}
+
+body:has(.daily-assignments-page) {
+  background: radial-gradient(ellipse at 12% 0%, rgba(219, 234, 254, .62), transparent 42%), linear-gradient(145deg, #f8fafc, #f1f5f9);
+}
+
+.daily-assignments-page {
+  padding-top: 32px;
+  color: var(--rc-ink);
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+}
+
+.daily-assignments-page .daily-assignments-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 28px 32px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 82% 10%, rgba(147, 197, 253, .3), transparent 36%), linear-gradient(120deg, #1d4ed8, #1e40af);
+  box-shadow: 0 18px 38px rgba(30, 64, 175, .2);
+}
+
+.daily-assignments-page .daily-assignments-header::after {
+  position: absolute;
+  z-index: -1;
+  right: 12%;
+  bottom: -105px;
+  width: 260px;
+  height: 190px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(191, 219, 254, .12), transparent 68%);
+  content: "";
+  pointer-events: none;
+}
+
+.daily-assignments-page .daily-eyebrow { color: #bfdbfe; }
+.daily-assignments-page .daily-assignments-header h1 { font-family: var(--font-heading, 'Poppins', sans-serif); font-weight: 700; letter-spacing: -.035em; }
+.daily-assignments-page .daily-assignments-header p:last-child { color: #dbeafe; }
+.daily-assignments-page .daily-header-actions { position: relative; z-index: 1; }
+
+.daily-assignments-page .daily-header-actions a,
+.daily-assignments-page .daily-toolbar button,
+.daily-assignments-page .daily-add-block,
+.daily-assignments-page .daily-remove-block,
+.daily-assignments-page .daily-save-button {
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, .05);
+  font-family: var(--font-heading, 'Poppins', sans-serif);
+  font-size: .8rem;
+  font-weight: 600;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.daily-assignments-page .daily-header-actions a:hover,
+.daily-assignments-page .daily-toolbar button:not(:disabled):hover,
+.daily-assignments-page .daily-add-block:hover,
+.daily-assignments-page .daily-remove-block:hover,
+.daily-assignments-page .daily-save-button:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(15, 23, 42, .1); }
+.daily-assignments-page .daily-header-actions .daily-primary-action { border-color: rgba(255, 255, 255, .5); color: #fff; background: rgba(255, 255, 255, .14); box-shadow: inset 0 1px rgba(255, 255, 255, .22); backdrop-filter: blur(10px); }
+.daily-assignments-page .daily-header-actions .daily-primary-action:hover { background: rgba(255, 255, 255, .24); }
+.daily-assignments-page .daily-header-actions .daily-secondary-action { border-color: rgba(255, 255, 255, .35); color: #eff6ff; background: transparent; box-shadow: none; }
+.daily-assignments-page .daily-save-button { border-color: #fbbf24; color: #78350f; background: linear-gradient(135deg, #fde68a, #fbbf24); box-shadow: 0 5px 14px rgba(245, 158, 11, .2); }
+.daily-assignments-page .daily-save-button:not(:disabled):hover { box-shadow: 0 9px 18px rgba(245, 158, 11, .28); }
+
+.daily-assignments-page .daily-toolbar,
+.daily-assignments-page .daily-room-card {
+  border-color: var(--rc-border);
+  border-radius: 16px;
+  background: var(--rc-surface);
+  box-shadow: var(--rc-shadow);
+}
+
+.daily-assignments-page .daily-toolbar { gap: 14px; margin: 22px 0; padding: 18px 20px; }
+.daily-assignments-page .daily-toolbar label,
+.daily-assignments-page .daily-teacher-grid label,
+.daily-assignments-page .daily-block-fields label { gap: 8px; color: #475569; font-size: .76rem; }
+.daily-assignments-page .daily-toolbar input,
+.daily-assignments-page .daily-teacher-grid input,
+.daily-assignments-page .daily-block-fields input,
+.daily-assignments-page .daily-block-fields select {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-color: #cbd5e1;
+  border-radius: 10px;
+  color: var(--rc-ink);
+  font: inherit;
+  font-size: .84rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.daily-assignments-page .daily-toolbar input:hover,
+.daily-assignments-page .daily-teacher-grid input:hover,
+.daily-assignments-page .daily-block-fields input:hover,
+.daily-assignments-page .daily-block-fields select:hover { border-color: #94a3b8; }
+.daily-assignments-page :is(input:not([type="checkbox"]), select, button, a):focus-visible { outline: 3px solid rgba(37, 99, 235, .3); outline-offset: 2px; }
+.daily-assignments-page :is(input:not([type="checkbox"]), select):focus { outline: none; border-color: var(--rc-blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+.daily-assignments-page .daily-toolbar button:not(:disabled),
+.daily-assignments-page .daily-add-block { border-color: #bfdbfe; color: #1d4ed8; background: #fff; cursor: pointer; }
+.daily-assignments-page .daily-toolbar button:disabled,
+.daily-assignments-page .daily-save-button:disabled { color: #94a3b8; border-color: #e2e8f0; background: #f1f5f9; box-shadow: none; cursor: not-allowed; }
+.daily-assignments-page .daily-toolbar > span { font-variant-numeric: tabular-nums; }
+
+.daily-assignments-page .daily-notice { padding: 14px 17px; border-left: 4px solid #3b82f6; border-radius: 10px; color: #1e3a8a; background: #eff6ff; }
+.daily-assignments-page .daily-notice.is-success { border-left-color: #22c55e; color: #166534; background: #f0fdf4; }
+.daily-assignments-page .daily-notice.is-error { border-left-color: #ef4444; color: #991b1b; background: #fef2f2; }
+.daily-assignments-page .daily-empty { padding: 30px 18px; border: 1px dashed #cbd5e1; border-radius: 14px; color: #64748b; background: #f8fafc; text-align: center; }
+.daily-assignments-page .daily-room-list { gap: 20px; }
+.daily-assignments-page .daily-room-card { padding: 24px; }
+.daily-assignments-page .daily-room-heading h2,
+.daily-assignments-page .daily-block-heading h3 { font-family: var(--font-heading, 'Poppins', sans-serif); font-weight: 700; }
+.daily-assignments-page .daily-capacity { border: 1px solid #dbeafe; border-radius: 8px; color: #1e40af; background: #eff6ff; font-variant-numeric: tabular-nums; }
+.daily-assignments-page .daily-teacher-grid { gap: 16px; padding-bottom: 22px; border-bottom-color: #edf1f5; }
+.daily-assignments-page .daily-block-heading { gap: 12px; margin-top: 22px; }
+.daily-assignments-page .daily-block-heading span,
+.daily-assignments-page .daily-field-label small { color: var(--rc-muted); }
+.daily-assignments-page .daily-no-blocks { border-radius: 10px; color: #64748b; background: #f8fafc; }
+.daily-assignments-page .daily-block { margin: 14px 0; padding: 18px; border-color: var(--rc-border); border-radius: 13px; background: #fff; }
+.daily-assignments-page .daily-block legend { color: #334155; font-family: var(--font-heading, 'Poppins', sans-serif); font-size: .8rem; }
+.daily-assignments-page .daily-block-fields { gap: 14px; }
+.daily-assignments-page .daily-remove-block { border-color: #fecaca; color: #b91c1c; background: #fff7f7; cursor: pointer; }
+.daily-assignments-page .daily-remove-block:hover { border-color: #fca5a5; background: #fee2e2; }
+.daily-assignments-page .daily-field-label { color: #334155; }
+.daily-assignments-page .daily-student-options { gap: 9px; }
+.daily-assignments-page .daily-student-options label { min-width: 0; min-height: 50px; padding: 9px 11px; border-color: #e2e8f0; border-radius: 10px; background: #fff; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+.daily-assignments-page .daily-student-options label:hover { border-color: #bfdbfe; background: #f8fbff; }
+.daily-assignments-page .daily-student-options label:has(input:checked) { border-color: #60a5fa; background: #eff6ff; box-shadow: 0 0 0 2px rgba(37, 99, 235, .08); }
+.daily-assignments-page .daily-student-options input { accent-color: #2563eb; }
+.daily-assignments-page .daily-student-options span { color: #1e293b; }
+.daily-assignments-page .daily-save-row { z-index: 5; margin-top: 20px; padding: 15px 18px; border-color: rgba(203, 213, 225, .85); border-radius: 14px; background: rgba(255, 255, 255, .88); box-shadow: 0 -8px 24px rgba(15, 23, 42, .08); backdrop-filter: blur(14px); }
+
+@media (max-width: 760px) {
+  .daily-assignments-page { width: calc(100% - 24px); padding-top: 12px; }
+  .daily-assignments-page .daily-assignments-header { padding: 22px; }
+  .daily-assignments-page .daily-header-actions,
+  .daily-assignments-page .daily-header-actions a,
+  .daily-assignments-page .daily-toolbar button,
+  .daily-assignments-page .daily-add-block,
+  .daily-assignments-page .daily-remove-block,
+  .daily-assignments-page .daily-save-button { width: 100%; }
+  .daily-assignments-page .daily-toolbar { align-items: stretch; }
+  .daily-assignments-page .daily-toolbar > span { margin-left: 0; }
+  .daily-assignments-page .daily-block-heading { align-items: stretch; flex-direction: column; }
+  .daily-assignments-page .daily-block-fields { grid-template-columns: minmax(0, 1fr); }
+  .daily-assignments-page .daily-save-row { z-index: 5; }
+  .daily-assignments-page .daily-room-card { padding: 18px; }
+}
+
+@media (max-width: 420px) {
+  .daily-assignments-page .daily-room-heading { align-items: flex-start; flex-wrap: wrap; }
+  .daily-assignments-page .daily-capacity { margin-left: 0; }
+  .daily-assignments-page .daily-teacher-grid { grid-template-columns: minmax(0, 1fr); }
+  .daily-assignments-page .daily-student-options { grid-template-columns: minmax(0, 1fr); }
+  .daily-assignments-page .daily-save-row { padding: 13px; }
+}
+
+.reception-tv-page {
+  color: #f1f5f9;
+  background: radial-gradient(ellipse at 10% 0%, rgba(37, 99, 235, .12), transparent 36%), #0b1420;
+}
+
+.reception-tv-page .tv-header { border-bottom-color: #29394b; }
+.reception-tv-page .tv-eyebrow { color: #93c5fd; }
+.reception-tv-page .tv-header p,
+.reception-tv-page .tv-error,
+.reception-tv-page .tv-empty span { color: #cbd5e1; }
+.reception-tv-page .tv-controls button,
+.reception-tv-page .tv-controls a { border-color: #475569; background-color: #1e293b; }
+.reception-tv-page .tv-controls a { border-color: #3b82f6; color: #fff; background: linear-gradient(120deg, #2563eb, #1e40af); }
+.reception-tv-page .tv-controls :is(input, select):focus-visible,
+.reception-tv-page .tv-controls :is(button, a):focus-visible { outline: 3px solid rgba(96, 165, 250, .7); outline-offset: 2px; }
+.reception-tv-page .tv-room-card { border-color: #334155; background: #172433; }
+.reception-tv-page .tv-room-card.is-active { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74, 222, 128, .15); }
+.reception-tv-page .tv-room-title { background: #1e3043; }
+.reception-tv-page .tv-room-title > strong { color: #052e1a; background: #4ade80; }
+.reception-tv-page .tv-room-card:not(.is-active) .tv-room-title > strong { color: #cbd5e1; background: #334155; }
+.reception-tv-page .tv-teachers { border-bottom-color: #334155; }
+.reception-tv-page .tv-teachers span,
+.reception-tv-page .tv-block-teacher,
+.reception-tv-page .tv-footer { color: #cbd5e1; }
+.reception-tv-page .tv-class-block { border-color: #334155; background: #111d2a; }
+.reception-tv-page .tv-class-block.current-block { border-color: #4ade80; background: #153328; }
+.reception-tv-page .tv-block-time { color: #93c5fd; }
+.reception-tv-page .tv-block-time strong { color: #052e1a; background: #4ade80; }
+.reception-tv-page .tv-student-list span { background: #293c50; }
+.reception-tv-page .tv-empty { border-color: #334155; background: #172433; }
+.reception-tv-page .tv-error { border-left-color: #f87171; background: #341f25; }
+.reception-tv-page .tv-footer { border-top-color: #29394b; }
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-assignments-page *,
+  .daily-assignments-page *::before,
+  .daily-assignments-page *::after,
+  .reception-tv-page *,
+  .reception-tv-page *::before,
+  .reception-tv-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

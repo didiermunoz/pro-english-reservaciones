@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState('reception')
+  const [mode, setMode] = useState('student')
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -43,15 +43,15 @@ export default function LoginPage() {
   const toggleLabel = isReceptionMode ? 'Iniciar como estudiante' : 'Iniciar como recepción'
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${isReceptionMode ? styles.receptionPage : ''}`}>
       <section className={styles.brandPanel} aria-label="Pro English Academy">
         <div className={styles.brandHeader}>
           <img className={styles.logo} src={logopro} alt="Pro English Academy" />
         </div>
       
         <div className={styles.brandContent}>
-          <p className={styles.eyebrow}>South Branch</p>
-          <h1>Accede ahora para reservar</h1>
+          <p className={styles.eyebrow}>{isReceptionMode ? 'South Branch · Recepción' : 'South Branch'}</p>
+          <h1>{isReceptionMode ? 'Coordina cada jornada con claridad' : 'Accede ahora para reservar'}</h1>
         </div>
 
         <div className={styles.brandFooter}>
@@ -65,9 +65,9 @@ export default function LoginPage() {
           <div className={styles.mobileBrand}>Pro English Academy</div>
 
           <header className={styles.heading}>
-            <p className={styles.kicker}>Bienvenido</p>
+            <p className={styles.kicker}>{isReceptionMode ? 'Bienvenido, equipo de recepción' : 'Bienvenido'}</p>
             <h2>Inicia sesión</h2>
-            <p>Ingresa tus datos para continuar.</p>
+            <p>{isReceptionMode ? 'Ingresa tus credenciales para gestionar la academia.' : 'Ingresa tus datos para continuar.'}</p>
           </header>
 
           <form className={styles.form} onSubmit={handleSubmit}>

@@ -341,6 +341,44 @@
   text-underline-offset: 3px;
 }
 
+.receptionPage {
+  background: #e8edf5;
+}
+
+.receptionPage .brandPanel {
+  background: linear-gradient(135deg, #0b1f4d 0%, #12366f 52%, #07142e 100%);
+}
+
+.receptionPage .formPanel {
+  background: #e8edf5;
+}
+
+.receptionPage .formWrapper {
+  border-color: #cbd5e1;
+  box-shadow: 0 16px 36px -20px rgba(8, 25, 57, 0.35), 0 10px 25px -5px rgba(8, 25, 57, 0.12);
+}
+
+.receptionPage .mobileBrand,
+.receptionPage .kicker,
+.receptionPage .modeToggle {
+  color: #17365d;
+}
+
+.receptionPage .form input:focus,
+.receptionPage .form select:focus {
+  border-color: #17365d;
+  box-shadow: 0 0 0 4px rgba(23, 54, 93, 0.14);
+}
+
+.receptionPage .submitButton {
+  background: linear-gradient(135deg, #102b59 0%, #1b477d 100%);
+  box-shadow: 0 16px 22px -18px rgba(16, 43, 89, 0.95);
+}
+
+.receptionPage .submitButton:focus-visible {
+  outline-color: rgba(23, 54, 93, 0.24);
+}
+
 @media (max-width: 760px) {
   .page {
     display: block;

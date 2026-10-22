@@ -7,6 +7,8 @@ import HomePage from './Pages/HomePage.jsx'
 import { StudentProvider } from './Services/StudentContext.jsx'
 import { useStudent } from './Services/useStudent.js'
 import ChangePasswordPage from './modules/modules/ChangePasswordPage.jsx'
+import DailyRoomAssignments from './modules/reception/DailyRoomAssignments.jsx'
+import ReceptionTvView from './modules/reception/ReceptionTvView.jsx'
 
 function NotFoundPage() {
   return (
@@ -37,6 +39,8 @@ export default function App() {
       <Route path="/actualizar-password" element={<ProtectedRoute role="student" allowPasswordChange><ChangePasswordPage /></ProtectedRoute>} />
       <Route path="/perfil" element={<ProtectedRoute role="student"><Profile /></ProtectedRoute>} />
       <Route path="/recepcion" element={<ProtectedRoute role="reception"><Reception /></ProtectedRoute>} />
+      <Route path="/recepcion/asignacion-diaria" element={<ProtectedRoute role="reception"><DailyRoomAssignments /></ProtectedRoute>} />
+      <Route path="/recepcion/pantalla-tv" element={<ProtectedRoute role="reception"><ReceptionTvView /></ProtectedRoute>} />
       <Route path="/home" element={<ProtectedRoute role="student"><HomePage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

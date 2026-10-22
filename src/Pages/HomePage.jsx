@@ -149,7 +149,6 @@ export default function HomePage({ onNavigate }) {
       <WeekProgress completedClasses={completedClasses} weekDates={weekDates} />
     </main>
     <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} loading={loading} />
-    <SchoolFooter />
+    <SchoolFooter /> 
   </div>
 }
- 

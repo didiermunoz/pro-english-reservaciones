@@ -8,6 +8,8 @@
     "dev:api": "node --watch src/backend/index.js",
     "dev:api:demo": "node --watch scripts/start-demo-api.js",
     "start:api": "node src/backend/index.js",
+    "db:migrate:daily-rooms": "node scripts/migrate-daily-room-assignments.js",
+    "db:seed:demo": "node scripts/seed-demo-data.js",
     "bootstrap:reception": "node scripts/bootstrap-reception.js",
     "build": "vite build",
     "lint": "oxlint",

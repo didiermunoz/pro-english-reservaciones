@@ -24,6 +24,7 @@ export default function Reception() {
   const [lessons, setLessons] = useState([])
   const [date, setDate] = useState(todayKey)
   const [query, setQuery] = useState('')
+  const [reservationHour, setReservationHour] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
@@ -92,8 +93,10 @@ export default function Reception() {
   const filteredStudents = students.filter((student) => (
     `${student.name} ${student.matricula}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
   ))
+  const reservationHours = [...new Set(reservations.map((reservation) => reservation.startTime))].sort()
   const filteredReservations = reservations.filter((reservation) => (
     `${reservation.student} ${reservation.studentId}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+    && (!reservationHour || reservation.startTime === reservationHour)
   ))
   const filteredLessons = lessons.filter((lesson) => (
     `${lesson.title} ${lesson.order} ${lesson.type}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
@@ -263,6 +266,7 @@ export default function Reception() {
         <button className={tab === 'reservations' ? 'active' : ''} type="button" onClick={() => setTab('reservations')}>Reservas <span>{reservations.length}</span></button>
         <button className={tab === 'rooms' ? 'active' : ''} type="button" onClick={() => setTab('rooms')}>Salones <span>{rooms.length}</span></button>
         <button className={tab === 'lessons' ? 'active' : ''} type="button" onClick={() => setTab('lessons')}>Lecciones <span>{lessons.length}</span></button>
+        <button type="button" onClick={() => navigate('/recepcion/asignacion-diaria')}>Asignación Diaria de Salones</button>
       </nav>
 
       {notice && <div className="reception-notice" role="status">{notice}{temporaryPassword && <strong className="temporary-password">{temporaryPassword}</strong>}</div>}
@@ -270,7 +274,7 @@ export default function Reception() {
       <section className="reception-panel">
         <div className="reception-toolbar">
           <label className="reception-search">Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o matrícula" /></label>
-          {tab === 'reservations' && <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>}
+          {tab === 'reservations' && <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => { setDate(event.target.value); setReservationHour('') }} /></label>}
           <button type="button" className="reception-refresh" disabled={loading} onClick={() => { setLoading(true); setNotice(''); reload() }}>{loading ? 'Consultando...' : 'Actualizar datos'}</button>
         </div>
 
@@ -296,6 +300,15 @@ export default function Reception() {
             {editingId && <button className="secondary" type="button" onClick={resetForm}>Cancelar edición</button>}
           </form>
         </div> : tab === 'reservations' ? <section className="reception-list-section">
+          <details className="reception-hour-filter">
+            <summary>{reservationHour ? `Filtrar por hora · ${reservationHour}` : 'Filtrar por hora'}</summary>
+            <label htmlFor="reservation-hour">Hora de inicio
+              <select id="reservation-hour" value={reservationHour} onChange={(event) => setReservationHour(event.target.value)}>
+                <option value="">Todas las horas</option>
+                {reservationHours.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+              </select>
+            </label>
+          </details>
           <div className="reception-section-heading"><h2>Reservas del {new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</h2><span>{filteredReservations.length} resultados</span></div>
           {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
             {filteredReservations.map((reservation) => <tr key={reservation.id}>

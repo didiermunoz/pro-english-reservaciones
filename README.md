@@ -9,11 +9,12 @@ Aplicación de agenda con frontend React/Vite, API REST Express y persistencia M
 - Una cuenta de recepción y cuentas de estudiante creadas en la base
 - Contratos activos, salones y lecciones configurados para permitir reservaciones
 
-No hay cuentas ni reservas de prueba en el frontend. Los hashes bcrypt existentes (incluido costo 12) se validan en el servidor.
+No hay cuentas ni reservas de prueba incluidas en el frontend. Los hashes bcrypt existentes (incluido costo 12) se validan en el servidor.
 
 ## Configuración
 
 Crea `.env` a partir de `.env.example` y configura `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y una clave aleatoria extensa en `JWT_SECRET`. `CLIENT_ORIGIN` debe coincidir con el origen de Vite y `VITE_API_URL` con la dirección de la API. Nunca publiques `.env`.
+La API carga este archivo desde la raíz del proyecto aunque se inicie desde otro directorio.
 
 Si la base ya contiene estas tablas, no vuelvas a ejecutar el DDL completo. El servidor espera `estudiantes`, `recepcion`, `contratos`, `reservas`, `lecciones` y `salones`, con las columnas definidas en `database/schema.sql`.
 
@@ -28,6 +29,10 @@ npm run dev
 La API usa `http://localhost:3000` por defecto; la app estará en la URL que Vite muestre (normalmente `http://localhost:5173`). Si el puerto 3000 está ocupado, establece `PORT` para la API y actualiza `VITE_API_URL` en `.env`.
 
 Comprueba `GET /api/health` para verificar que MySQL está conectado. `npm run build` valida el frontend y `npm run lint` ejecuta Oxlint.
+
+Para habilitar las asignaciones diarias de salones, aplica una vez `npm run db:migrate:daily-rooms` después de configurar `.env`. El módulo queda disponible en `/recepcion/asignacion-diaria` y la vista para monitor en `/recepcion/pantalla-tv`.
+
+Para preparar datos de muestra para una revisión, ejecuta `npm run db:seed:demo` en un entorno que no sea producción. El comando conserva las reservas existentes, agrega reservas hasta alcanzar cantidades variadas según las horas semanales de cada estudiante registrado, crea los salones numerados del 1 al 8 si faltan y distribuye los bloques de hoy en salones distintos para la pantalla TV y el editor. Requiere que ya se hayan creado los estudiantes y que la migración diaria esté aplicada; no crea credenciales de prueba.
 
 Si `recepcion` está vacía, configura `BOOTSTRAP_RECEPTION_USERNAME`, `BOOTSTRAP_RECEPTION_NAME` y una contraseña privada de al menos 12 caracteres en `.env`, ejecuta `npm run bootstrap:reception` una sola vez y retira la contraseña del archivo. El comando se niega a crear cuentas si ya existe una. No se incluye un usuario de demostración ni una contraseña predecible.
 
@@ -48,5 +53,7 @@ El login solicita tipo de cuenta, identificador y contraseña. El servidor compa
 - `GET/POST /api/reception/rooms`, `PATCH/DELETE /api/reception/rooms/:id`
 - `GET/POST /api/reception/lessons`, `PATCH/DELETE /api/reception/lessons/:id`
 - `GET/PATCH /api/reception/reservations`
+- `GET /api/reception/daily-room-assignments?date=YYYY-MM-DD`, `PUT /api/reception/daily-room-assignments/:date`
+- `GET /api/reception/daily-room-assignments/tv?date=YYYY-MM-DD`
 
 Las respuestas de mutación actualizan el estado del cliente; además las vistas vuelven a consultar al entrar en foco y periódicamente para reflejar cambios hechos por el otro rol.

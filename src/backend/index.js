@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import cors from 'cors'
@@ -105,6 +104,97 @@ async function getStudentReservations(studentId) {
 async function getStaff(userId) {
   const [rows] = await pool.query('SELECT id, nombre, usuario FROM recepcion WHERE id = ?', [userId])
   return rows[0] ? { id: rows[0].id, name: rows[0].nombre, username: rows[0].usuario, role: 'reception' } : null
+}
+
+function isValidDateKey(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+function requireDateKey(value) {
+  if (!isValidDateKey(value)) throw Object.assign(new Error('Fecha inválida.'), { status: 400 })
+  return value
+}
+
+async function getDailyRoomAssignments(date) {
+  const [rooms] = await pool.query(
+    `SELECT s.id, s.nombre_salon AS name, s.capacidad_maxima AS capacity,
+      COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
+      COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher
+     FROM salones s LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
+     ORDER BY s.nombre_salon`,
+    [date],
+  )
+  const [blocks] = await pool.query(
+    `SELECT b.id, b.salon_id AS roomId, b.leccion_id AS lessonId,
+      l.titulo AS lessonTitle, l.tipo AS lessonType,
+      TIME_FORMAT(b.hora_inicio, '%H:%i') AS startTime,
+      TIME_FORMAT(b.hora_fin, '%H:%i') AS endTime
+     FROM bloques_diarios_salon b JOIN lecciones l ON l.id = b.leccion_id
+     WHERE b.fecha = ? ORDER BY b.salon_id, b.hora_inicio`,
+    [date],
+  )
+  const [attendees] = await pool.query(
+    `SELECT a.bloque_id AS blockId, e.id, e.matricula, e.nombre_completo AS name
+     FROM alumnos_bloque_diario a JOIN estudiantes e ON e.id = a.estudiante_id
+     JOIN bloques_diarios_salon b ON b.id = a.bloque_id
+     WHERE b.fecha = ? ORDER BY e.nombre_completo`,
+    [date],
+  )
+  const attendeesByBlock = new Map()
+  for (const attendee of attendees) {
+    const list = attendeesByBlock.get(attendee.blockId) || []
+    list.push({ id: attendee.id, matricula: attendee.matricula, name: attendee.name })
+    attendeesByBlock.set(attendee.blockId, list)
+  }
+  const roomsById = new Map(rooms.map((room) => [room.id, { ...room, blocks: [] }]))
+  for (const block of blocks) {
+    roomsById.get(block.roomId)?.blocks.push({ ...block, students: attendeesByBlock.get(block.id) || [] })
+  }
+  return [...roomsById.values()]
+}
+
+function validateDailyRoomPayload(rooms) {
+  if (!Array.isArray(rooms)) throw Object.assign(new Error('La lista de salones es obligatoria.'), { status: 400 })
+  const roomIds = new Set()
+  const studentIntervals = new Map()
+  const referencedStudentIds = new Set()
+  const referencedLessonIds = new Set()
+  for (const room of rooms) {
+    const roomId = Number(room.roomId)
+    if (!Number.isInteger(roomId) || roomId < 1 || roomIds.has(roomId)) throw Object.assign(new Error('La asignación contiene salones inválidos o repetidos.'), { status: 400 })
+    roomIds.add(roomId)
+    for (const teacher of [room.morningTeacher, room.afternoonTeacher]) {
+      if (typeof teacher !== 'string' || teacher.trim().length > 100) throw Object.assign(new Error('El nombre del profesor debe tener como máximo 100 caracteres.'), { status: 400 })
+    }
+    if (!Array.isArray(room.blocks)) throw Object.assign(new Error('Los bloques de horario del salón son inválidos.'), { status: 400 })
+    const intervals = []
+    for (const block of room.blocks) {
+      const lessonId = Number(block.lessonId)
+      const startTime = String(block.startTime || '')
+      const endTime = String(block.endTime || '')
+      if (!Number.isInteger(lessonId) || lessonId < 1) throw Object.assign(new Error('Selecciona una lección para cada bloque.'), { status: 400 })
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || endTime <= startTime) {
+        throw Object.assign(new Error('Cada bloque debe tener un horario válido y una hora de fin posterior al inicio.'), { status: 400 })
+      }
+      if (intervals.some((interval) => startTime < interval.end && endTime > interval.start)) throw Object.assign(new Error('Hay bloques de horario solapados en un salón.'), { status: 409 })
+      intervals.push({ start: startTime, end: endTime })
+      referencedLessonIds.add(lessonId)
+      if (!Array.isArray(block.studentIds)) throw Object.assign(new Error('La lista de estudiantes del bloque es inválida.'), { status: 400 })
+      const studentIds = [...new Set(block.studentIds.map(Number))]
+      block.validatedStudentIds = studentIds
+      for (const studentId of studentIds) {
+        if (!Number.isInteger(studentId) || studentId < 1) throw Object.assign(new Error('La asignación contiene estudiantes inválidos.'), { status: 400 })
+        const studentBlocks = studentIntervals.get(studentId) || []
+        if (studentBlocks.some((interval) => startTime < interval.end && endTime > interval.start)) throw Object.assign(new Error('Un estudiante no puede estar asignado a dos salones al mismo tiempo.'), { status: 409 })
+        studentBlocks.push({ start: startTime, end: endTime })
+        studentIntervals.set(studentId, studentBlocks)
+        referencedStudentIds.add(studentId)
+      }
+    }
+  }
+  return { roomIds, referencedLessonIds, referencedStudentIds }
 }
 
 async function ensureDemoSetup(studentId) {
@@ -408,6 +498,85 @@ app.get('/api/reception/lessons', authenticate, requireRole('reception'), asyncR
   res.json({ lessons: rows.map(({ lessonOrder, ...lesson }) => ({ ...lesson, order: lessonOrder })) })
 }))
 
+app.get('/api/reception/daily-room-assignments', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const date = requireDateKey(String(req.query.date || ''))
+  res.json({ date, rooms: await getDailyRoomAssignments(date) })
+}))
+
+app.put('/api/reception/daily-room-assignments/:date', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const date = requireDateKey(String(req.params.date || ''))
+  const rooms = req.body.rooms
+  const { roomIds, referencedLessonIds, referencedStudentIds } = validateDailyRoomPayload(rooms)
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [dbRooms] = await connection.query('SELECT id, capacidad_maxima AS capacity FROM salones ORDER BY id FOR UPDATE')
+    if (roomIds.size !== dbRooms.length || dbRooms.some((room) => !roomIds.has(room.id))) {
+      throw Object.assign(new Error('La lista de salones cambió. Actualiza los datos e inténtalo de nuevo.'), { status: 409 })
+    }
+    const capacityByRoom = new Map(dbRooms.map((room) => [room.id, Number(room.capacity)]))
+    for (const room of rooms) {
+      if (room.blocks.some((block) => block.validatedStudentIds.length > capacityByRoom.get(Number(room.roomId)))) {
+        throw Object.assign(new Error(`Un bloque supera el aforo del salón ${room.roomId}.`), { status: 400 })
+      }
+    }
+    if (referencedLessonIds.size) {
+      const lessonPlaceholders = [...referencedLessonIds].map(() => '?').join(', ')
+      const [knownLessons] = await connection.query(`SELECT id FROM lecciones WHERE id IN (${lessonPlaceholders})`, [...referencedLessonIds])
+      if (knownLessons.length !== referencedLessonIds.size) throw Object.assign(new Error('Una o más lecciones ya no existen.'), { status: 400 })
+    }
+    if (referencedStudentIds.size) {
+      const studentPlaceholders = [...referencedStudentIds].map(() => '?').join(', ')
+      const [knownStudents] = await connection.query(`SELECT id FROM estudiantes WHERE id IN (${studentPlaceholders})`, [...referencedStudentIds])
+      if (knownStudents.length !== referencedStudentIds.size) throw Object.assign(new Error('Uno o más estudiantes ya no existen.'), { status: 400 })
+    }
+
+    await connection.query('DELETE FROM bloques_diarios_salon WHERE fecha = ?', [date])
+    await connection.query('DELETE FROM asignaciones_diarias_salon WHERE fecha = ?', [date])
+    for (const room of rooms) {
+      const roomId = Number(room.roomId)
+      await connection.query(
+        'INSERT INTO asignaciones_diarias_salon (fecha, salon_id, profesor_manana, profesor_tarde) VALUES (?, ?, ?, ?)',
+        [date, roomId, room.morningTeacher.trim(), room.afternoonTeacher.trim()],
+      )
+      for (const block of room.blocks) {
+        const [result] = await connection.query(
+          'INSERT INTO bloques_diarios_salon (fecha, salon_id, leccion_id, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?)',
+          [date, roomId, Number(block.lessonId), `${block.startTime}:00`, `${block.endTime}:00`],
+        )
+        for (const studentId of block.validatedStudentIds) {
+          await connection.query('INSERT INTO alumnos_bloque_diario (bloque_id, estudiante_id) VALUES (?, ?)', [result.insertId, studentId])
+        }
+      }
+    }
+    await connection.commit()
+    res.json({ date, rooms: await getDailyRoomAssignments(date), message: 'Asignaciones diarias guardadas.' })
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+}))
+
+app.get('/api/reception/daily-room-assignments/tv', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const date = requireDateKey(String(req.query.date || ''))
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const rooms = (await getDailyRoomAssignments(date))
+    .filter((room) => room.blocks.length)
+    .map((room) => ({
+      ...room,
+      blocks: room.blocks.map((block) => ({
+        ...block,
+        teacher: block.startTime < '13:00' ? room.morningTeacher : room.afternoonTeacher,
+        isCurrent: date === today && block.startTime <= currentTime && block.endTime > currentTime,
+      })),
+    }))
+  res.json({ date, currentTime, generatedAt: now.toISOString(), rooms })
+}))
+
 app.post('/api/reception/lessons', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const order = Number(req.body.order)
   const title = String(req.body.title || '').trim()
@@ -540,13 +709,20 @@ app.patch('/api/reception/reservations/:id', authenticate, requireRole('receptio
   res.json({ message: 'Estado de reserva actualizado.' })
 }))
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   if (error.code === 'ER_DUP_ENTRY') {
-    const message = _req.path.includes('/lessons') ? 'El orden de lección ya está ocupado.' : _req.path.includes('/students') ? 'La matrícula ya está registrada.' : 'Ya existe un registro con esos datos.'
+    const message = req.path.includes('/lessons') ? 'El orden de lección ya está ocupado.' : req.path.includes('/students') ? 'La matrícula ya está registrada.' : 'Ya existe un registro con esos datos.'
     return sendError(res, 409, message, 'DUPLICATE_RECORD')
   }
   if (String(error.code || '').startsWith('ER_ROW_IS_REFERENCED')) return sendError(res, 409, 'No se puede eliminar este registro porque tiene datos asociados.', 'RECORD_IN_USE')
   const status = error.status || 500
+  if (status >= 500) {
+    console.error('API request failed', {
+      method: req.method,
+      path: req.path,
+      code: error.code || 'UNKNOWN_ERROR',
+    })
+  }
   const message = status < 500 ? error.message : 'Error interno del servidor.'
   return sendError(res, status, message, status === 500 ? 'INTERNAL_ERROR' : undefined)
 })

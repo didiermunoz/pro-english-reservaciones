@@ -541,6 +541,7 @@ app.patch('/api/reception/reservations/:id', authenticate, requireRole('receptio
 }))
 
 app.use((error, _req, res, _next) => {
+ console.error(error)   
   if (error.code === 'ER_DUP_ENTRY') {
     const message = _req.path.includes('/lessons') ? 'El orden de lección ya está ocupado.' : _req.path.includes('/students') ? 'La matrícula ya está registrada.' : 'Ya existe un registro con esos datos.'
     return sendError(res, 409, message, 'DUPLICATE_RECORD')

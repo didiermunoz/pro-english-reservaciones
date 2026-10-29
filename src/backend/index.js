@@ -20,6 +20,10 @@ app.use(express.json({ limit: '100kb' }))
 
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
 const sendError = (res, status, message, code) => res.status(status).json({ message, code })
+const LEVEL_CODES = ['S', 'B', 'I', 'IA', 'A']
+const CANCELLATION_MINUTES = 60
+const CONTRACT_MODALITIES = ['Presencial', 'En Linea']
+const DEFAULT_WEEKLY_HOURS = 6
 
 async function getBookableDateKey() {
   const [rows] = await pool.query("SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL IF(DAYOFWEEK(CURDATE()) = 7, 2, 1) DAY), '%Y-%m-%d') AS bookable")
@@ -54,7 +58,7 @@ async function requireStudentReady(req, res, next) {
 
 async function getStudent(userId) {
   const [rows] = await pool.query(
-    `SELECT e.id, e.matricula, e.nombre_completo, e.debe_cambiar_password,
+    `SELECT e.id, e.matricula, e.nombre_completo, e.nivel, e.debe_cambiar_password,
       c.horas_semanales, c.modalidad, c.fecha_inicio, c.fecha_fin, c.activo
      FROM estudiantes e
      LEFT JOIN contratos c ON c.estudiante_id = e.id AND c.activo = TRUE
@@ -69,6 +73,7 @@ function serializeStudent(row) {
     id: row.id,
     matricula: row.matricula,
     name: row.nombre_completo,
+    level: row.nivel || null,
     role: 'student',
     mustChangePassword: Boolean(row.debe_cambiar_password),
     contract: row.horas_semanales == null ? null : {
@@ -221,7 +226,7 @@ async function ensureDemoSetup(studentId) {
       const weeklyHours = Math.max(1, Math.min(20, Number(process.env.DEMO_CONTRACT_WEEKLY_HOURS) || 6))
       await connection.query(
         `INSERT INTO contratos (estudiante_id, horas_semanales, modalidad, fecha_inicio, fecha_fin, activo)
-         VALUES (?, ?, 'Hibrida', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), TRUE)`,
+         VALUES (?, ?, 'Presencial', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), TRUE)`,
         [studentId, weeklyHours],
       )
     }
@@ -358,12 +363,12 @@ app.get('/api/student/availability', authenticate, requireStudentReady, asyncRou
 }))
 
 app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
-  const { slots, modalidad } = req.body
+  const { slots } = req.body
   if (!Array.isArray(slots) || slots.length === 0) return sendError(res, 400, 'Selecciona al menos un horario.', 'SLOTS_REQUIRED')
   const student = await getStudent(req.auth.userId)
   if (!student?.horas_semanales) return sendError(res, 409, 'No hay un contrato activo con horas disponibles.', 'CONTRACT_REQUIRED')
-  const attendanceMode = modalidad === 'online' ? 'En Linea' : 'Presencial'
-  if (student.modalidad !== 'Hibrida' && student.modalidad !== attendanceMode) return sendError(res, 400, 'La modalidad no coincide con tu contrato.', 'MODALITY_MISMATCH')
+  if (!CONTRACT_MODALITIES.includes(student.modalidad)) return sendError(res, 409, 'Tu contrato no tiene una modalidad válida. Contacta a recepción.', 'INVALID_CONTRACT_MODALITY')
+  const attendanceMode = student.modalidad
 
   const connection = await pool.getConnection()
   try {
@@ -454,10 +459,13 @@ app.patch('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute
 }))
 
 app.delete('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
-  const [rows] = await pool.query(`SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS dateKey FROM reservas WHERE id = ? AND estudiante_id = ? AND estado = 'Confirmada'`, [req.params.id, req.auth.userId])
+  const [rows] = await pool.query(
+    `SELECT TIMESTAMPDIFF(MINUTE, NOW(), TIMESTAMP(fecha, hora_inicio)) >= ? AS can_cancel
+     FROM reservas WHERE id = ? AND estudiante_id = ? AND estado = 'Confirmada'`,
+    [CANCELLATION_MINUTES, req.params.id, req.auth.userId],
+  )
   if (!rows[0]) return sendError(res, 404, 'Reserva no encontrada.', 'RESERVATION_NOT_FOUND')
-  const [allowed] = await pool.query('SELECT DATEDIFF(?, CURDATE()) >= 1 AS can_cancel', [rows[0].dateKey])
-  if (!allowed[0].can_cancel) return sendError(res, 409, 'Las cancelaciones deben realizarse con al menos 1 día de anticipación.', 'CANCELLATION_DEADLINE')
+  if (!rows[0].can_cancel) return sendError(res, 409, 'Las cancelaciones deben realizarse con al menos 1 hora de anticipación.', 'CANCELLATION_DEADLINE')
   await pool.query(`UPDATE reservas SET estado = 'Cancelada' WHERE id = ? AND estudiante_id = ?`, [req.params.id, req.auth.userId])
   res.json({ reservations: await getStudentReservations(req.auth.userId) })
 }))
@@ -474,10 +482,10 @@ app.delete('/api/reservations', authenticate, requireStudentReady, asyncRoute(as
   if (rows.length !== ids.length) return sendError(res, 404, 'Una o más reservas no están disponibles.', 'RESERVATION_NOT_FOUND')
   const [deadline] = await pool.query(
     `SELECT COUNT(*) AS blocked FROM reservas WHERE id IN (${placeholders})
-     AND estudiante_id = ? AND DATEDIFF(fecha, CURDATE()) < 1`,
-    [...ids, req.auth.userId],
+     AND estudiante_id = ? AND TIMESTAMPDIFF(MINUTE, NOW(), TIMESTAMP(fecha, hora_inicio)) < ?`,
+    [...ids, req.auth.userId, CANCELLATION_MINUTES],
   )
-  if (Number(deadline[0].blocked) > 0) return sendError(res, 409, 'Las cancelaciones deben realizarse con al menos 1 día de anticipación.', 'CANCELLATION_DEADLINE')
+  if (Number(deadline[0].blocked) > 0) return sendError(res, 409, 'Las cancelaciones deben realizarse con al menos 1 hora de anticipación.', 'CANCELLATION_DEADLINE')
   const [result] = await pool.query(`UPDATE reservas SET estado = 'Cancelada' WHERE id IN (${placeholders}) AND estudiante_id = ? AND estado = 'Confirmada'`, [...ids, req.auth.userId])
   if (result.affectedRows !== ids.length) return sendError(res, 409, 'Una o más reservas cambiaron mientras procesábamos la solicitud.', 'RESERVATION_CONFLICT')
   res.json({ reservations: await getStudentReservations(req.auth.userId) })
@@ -485,7 +493,7 @@ app.delete('/api/reservations', authenticate, requireStudentReady, asyncRoute(as
 
 app.get('/api/reception/students', authenticate, requireRole('reception'), asyncRoute(async (_req, res) => {
   const [rows] = await pool.query(
-    `SELECT e.id, e.matricula, e.nombre_completo, e.debe_cambiar_password,
+    `SELECT e.id, e.matricula, e.nombre_completo, e.nivel, e.debe_cambiar_password,
       c.horas_semanales, c.modalidad, c.fecha_inicio, c.fecha_fin, c.activo,
       COUNT(CASE WHEN r.estado = 'Confirmada' THEN 1 END) AS active_reservations
      FROM estudiantes e
@@ -652,23 +660,96 @@ app.delete('/api/reception/rooms/:id', authenticate, requireRole('reception'), a
 app.post('/api/reception/students', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const matricula = String(req.body.matricula || '').trim()
   const name = String(req.body.name || '').trim()
+  const { level } = req.body
+  const { modality, contractEnd } = req.body
+  if (!LEVEL_CODES.includes(level)) return sendError(res, 400, 'Selecciona un nivel válido.', 'INVALID_LEVEL')
+  if (!CONTRACT_MODALITIES.includes(modality)) return sendError(res, 400, 'Selecciona una modalidad válida.', 'INVALID_MODALITY')
+  if (!isValidDateKey(contractEnd)) return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
   if (!matricula || !name) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
   const temporaryPassword = String(req.body.password || randomBytes(9).toString('base64url'))
   const password = await bcrypt.hash(temporaryPassword, bcryptRounds)
-  const [result] = await pool.query(
-    'INSERT INTO estudiantes (matricula, nombre_completo, password, debe_cambiar_password) VALUES (?, ?, ?, TRUE)',
-    [matricula, name, password],
-  )
-  const student = await getStudent(result.insertId)
+  const connection = await pool.getConnection()
+  let studentId
+  try {
+    await connection.beginTransaction()
+    const [validDates] = await connection.query('SELECT CAST(? AS DATE) >= CURDATE() AS is_valid', [contractEnd])
+    if (!validDates[0].is_valid) {
+      await connection.rollback()
+      return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
+    }
+    const [result] = await connection.query(
+      'INSERT INTO estudiantes (matricula, nombre_completo, nivel, password, debe_cambiar_password) VALUES (?, ?, ?, ?, TRUE)',
+      [matricula, name, level, password],
+    )
+    studentId = result.insertId
+    await connection.query(
+      'INSERT INTO contratos (estudiante_id, horas_semanales, modalidad, fecha_inicio, fecha_fin, activo) VALUES (?, ?, ?, CURDATE(), ?, TRUE)',
+      [studentId, DEFAULT_WEEKLY_HOURS, modality, contractEnd],
+    )
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+  const student = await getStudent(studentId)
   res.status(201).json({ student: serializeStudent(student), temporaryPassword })
 }))
 
 app.patch('/api/reception/students/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const name = String(req.body.name || '').trim()
   const matricula = String(req.body.matricula || '').trim()
+  const { level } = req.body
+  if (level !== undefined && !LEVEL_CODES.includes(level)) return sendError(res, 400, 'Selecciona un nivel válido.', 'INVALID_LEVEL')
   if (!name || !matricula) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
-  const [result] = await pool.query('UPDATE estudiantes SET nombre_completo = ?, matricula = ? WHERE id = ?', [name, matricula, req.params.id])
-  if (!result.affectedRows) return sendError(res, 404, 'Estudiante no encontrado.', 'STUDENT_NOT_FOUND')
+  const { modality, contractEnd } = req.body
+  if ((modality === undefined) !== (contractEnd === undefined)) return sendError(res, 400, 'Indica modalidad y vencimiento.', 'CONTRACT_FIELDS_INCOMPLETE')
+  if (modality === undefined) {
+    const [result] = await pool.query('UPDATE estudiantes SET nombre_completo = ?, matricula = ?, nivel = COALESCE(?, nivel) WHERE id = ?', [name, matricula, level ?? null, req.params.id])
+    if (!result.affectedRows) return sendError(res, 404, 'Estudiante no encontrado.', 'STUDENT_NOT_FOUND')
+    const student = await getStudent(req.params.id)
+    return res.json({ student: serializeStudent(student) })
+  }
+  if (!CONTRACT_MODALITIES.includes(modality)) return sendError(res, 400, 'Selecciona una modalidad válida.', 'INVALID_MODALITY')
+  if (!isValidDateKey(contractEnd)) return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [validDates] = await connection.query('SELECT CAST(? AS DATE) >= CURDATE() AS is_valid', [contractEnd])
+    if (!validDates[0].is_valid) {
+      await connection.rollback()
+      return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
+    }
+    await connection.query('UPDATE estudiantes SET nombre_completo = ?, matricula = ?, nivel = COALESCE(?, nivel) WHERE id = ?', [name, matricula, level ?? null, req.params.id])
+    const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ?', [req.params.id])
+    if (!students[0]) {
+      await connection.rollback()
+      return sendError(res, 404, 'Estudiante no encontrado.', 'STUDENT_NOT_FOUND')
+    }
+    const [contracts] = await connection.query(
+      'SELECT id, DATE_FORMAT(fecha_inicio, \'%Y-%m-%d\') AS fecha_inicio FROM contratos WHERE estudiante_id = ? AND activo = TRUE ORDER BY id DESC LIMIT 1',
+      [req.params.id],
+    )
+    if (contracts[0]) {
+      if (contractEnd < contracts[0].fecha_inicio) {
+        await connection.rollback()
+        return sendError(res, 400, 'La fecha de vencimiento no puede ser anterior al inicio del contrato.', 'INVALID_CONTRACT_END')
+      }
+      await connection.query('UPDATE contratos SET modalidad = ?, fecha_fin = ? WHERE id = ?', [modality, contractEnd, contracts[0].id])
+    } else {
+      await connection.query(
+        'INSERT INTO contratos (estudiante_id, horas_semanales, modalidad, fecha_inicio, fecha_fin, activo) VALUES (?, ?, ?, CURDATE(), ?, TRUE)',
+        [req.params.id, DEFAULT_WEEKLY_HOURS, modality, contractEnd],
+      )
+    }
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
   const student = await getStudent(req.params.id)
   res.json({ student: serializeStudent(student) })
 }))
@@ -678,6 +759,7 @@ app.delete('/api/reception/students/:id', authenticate, requireRole('reception')
   try {
     await connection.beginTransaction()
     await connection.query('DELETE FROM reservas WHERE estudiante_id = ?', [req.params.id])
+    await connection.query('DELETE FROM contratos WHERE estudiante_id = ?', [req.params.id])
     const [result] = await connection.query('DELETE FROM estudiantes WHERE id = ?', [req.params.id])
     if (!result.affectedRows) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
     await connection.commit()
@@ -700,7 +782,7 @@ app.get('/api/reception/reservations', authenticate, requireRole('reception'), a
     params.push(date)
   }
   const [rows] = await pool.query(
-    `SELECT r.id, e.matricula, e.nombre_completo, DATE_FORMAT(r.fecha, '%Y-%m-%d') AS dateKey,
+    `SELECT r.id, e.matricula, e.nombre_completo, e.nivel AS level, DATE_FORMAT(r.fecha, '%Y-%m-%d') AS dateKey,
       TIME_FORMAT(r.hora_inicio, '%H:%i') AS startTime, TIME_FORMAT(r.hora_fin, '%H:%i') AS endTime,
       r.estado AS status, r.modalidad_asistencia AS modality, l.titulo AS lesson
      FROM reservas r JOIN estudiantes e ON e.id = r.estudiante_id

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../Services/api'
+import { getLevel, LEVELS } from '../../Services/levels'
+import { formatModality, getContractExpiry } from '../../Services/scheduleUtils'
 import { useStudent } from '../../Services/useStudent'
 import './reception.css'
 import './reception-api.css'
@@ -10,7 +12,7 @@ const todayKey = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
-const emptyForm = { matricula: '', name: '' }
+const emptyForm = { matricula: '', name: '', level: '', modality: '', contractEnd: '' }
 const emptyRoomForm = { name: '', morningTeacher: '', afternoonTeacher: '', capacity: 10 }
 const emptyLessonForm = { order: '', title: '', type: 'Leccion' }
 
@@ -104,7 +106,13 @@ export default function Reception() {
 
   const startEdit = (student) => {
     setEditingId(student.id)
-    setForm({ matricula: student.matricula, name: student.name })
+    setForm({
+      matricula: student.matricula,
+      name: student.name,
+      level: student.level || '',
+      modality: ['Presencial', 'En Linea'].includes(student.contract?.modality) ? student.contract.modality : '',
+      contractEnd: student.contract?.endDate || '',
+    })
     setNotice('')
     setTemporaryPassword('')
   }
@@ -120,15 +128,27 @@ export default function Reception() {
       setNotice('Campos obligatorios incompletos.')
       return
     }
+    if (!form.level) {
+      setNotice('Selecciona un nivel válido.')
+      return
+    }
+    const hasContractDetails = Boolean(form.modality || form.contractEnd)
+    const studentHasContract = Boolean(students.find((student) => student.id === editingId)?.contract)
+    if (Boolean(form.modality) !== Boolean(form.contractEnd) || ((!editingId || studentHasContract) && !hasContractDetails)) {
+      setNotice('Indica modalidad y vencimiento.')
+      return
+    }
     setSaving(true)
     setNotice('')
     setTemporaryPassword('')
     try {
+      const studentData = { matricula: form.matricula.trim(), name: form.name.trim(), level: form.level }
+      if (form.modality && form.contractEnd) Object.assign(studentData, { modality: form.modality, contractEnd: form.contractEnd })
       if (editingId) {
-        await api.updateStudent(token, editingId, { matricula: form.matricula.trim(), name: form.name.trim() })
+        await api.updateStudent(token, editingId, studentData)
         setNotice('Datos del estudiante actualizados.')
       } else {
-        const result = await api.createStudent(token, { matricula: form.matricula.trim(), name: form.name.trim() })
+        const result = await api.createStudent(token, studentData)
         setTemporaryPassword(result.temporaryPassword)
         setNotice('Estudiante registrado. Entrega esta contraseña temporal para su primer acceso:')
       }
@@ -281,10 +301,16 @@ export default function Reception() {
         {tab === 'students' ? <div className="reception-management-grid">
           <section className="reception-list-section">
             <div className="reception-section-heading"><h2>Estudiantes registrados</h2><span>{filteredStudents.length} resultados</span></div>
-            {loading ? <p className="reception-empty">Cargando estudiantes...</p> : filteredStudents.length === 0 ? <p className="reception-empty">No hay estudiantes que coincidan con la búsqueda.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Matrícula</th><th>Nombre completo</th><th>Contrato</th><th>Reservas activas</th><th>Acciones</th></tr></thead><tbody>
+            {loading ? <p className="reception-empty">Cargando estudiantes...</p> : filteredStudents.length === 0 ? <p className="reception-empty">No hay estudiantes que coincidan con la búsqueda.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Matrícula</th><th>Nombre completo</th><th>Nivel</th><th>Contrato</th><th>Vencimiento</th><th>Reservas activas</th><th>Acciones</th></tr></thead><tbody>
               {filteredStudents.map((student) => <tr key={student.id}>
                 <td>{student.matricula}</td><td>{student.name}</td>
-                <td>{student.contract ? `${student.contract.weeklyHours} h/semana · ${student.contract.modality}` : 'Sin contrato activo'}</td>
+                <td>{student.level ? <><span className="reception-level-badge" data-level={student.level} title={getLevel(student.level)?.name}>{student.level}</span> <small>{getLevel(student.level)?.name}</small></> : 'Sin asignar'}</td>
+                <td>{student.contract ? `${student.contract.weeklyHours} h/semana · ${formatModality(student.contract.modality)}` : 'Sin contrato activo'}</td>
+                <td>{student.contract?.endDate ? (() => {
+                  const expiry = getContractExpiry(student.contract.endDate)
+                  const statusText = expiry.status === 'expired' ? `Vencido hace ${Math.abs(expiry.days)} d` : expiry.status === 'soon' ? expiry.days === 0 ? 'Vence hoy' : `Vence en ${expiry.days} d` : 'Vigente'
+                  return <>{new Date(`${student.contract.endDate}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} <span className="reception-expiry-badge" data-status={expiry.status}>{statusText}</span></>
+                })() : '—'}</td>
                 <td>{student.activeReservations}</td>
                 <td className="reception-row-actions"><button type="button" onClick={() => startEdit(student)}>Editar</button><button type="button" className="danger" onClick={() => setPendingDelete(student)}>Eliminar</button></td>
               </tr>)}
@@ -295,6 +321,9 @@ export default function Reception() {
             <h2>{editingId ? 'Editar estudiante' : 'Registrar estudiante'}</h2>
             <label htmlFor="student-matricula">Matrícula<input id="student-matricula" value={form.matricula} onChange={(event) => setForm({ ...form, matricula: event.target.value })} required /></label>
             <label htmlFor="student-name">Nombre completo<input id="student-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+            <label htmlFor="student-level">Nivel<select id="student-level" value={form.level} onChange={(event) => setForm({ ...form, level: event.target.value })} required><option value="" disabled>Selecciona un nivel</option>{LEVELS.map((level) => <option key={level.code} value={level.code}>{level.code} — {level.name}</option>)}</select></label>
+            <label htmlFor="student-modality">Modalidad<select id="student-modality" value={form.modality} onChange={(event) => setForm({ ...form, modality: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)}><option value="" disabled>Selecciona modalidad</option><option value="Presencial">Presencial</option><option value="En Linea">En línea</option></select></label>
+            <label htmlFor="student-contract-end">Vencimiento de contrato<input id="student-contract-end" type="date" value={form.contractEnd} onChange={(event) => setForm({ ...form, contractEnd: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)} /></label>
             {!editingId && <p>Se generará una contraseña temporal segura; se mostrará una sola vez al guardar.</p>}
             <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar estudiante'}</button>
             {editingId && <button className="secondary" type="button" onClick={resetForm}>Cancelar edición</button>}
@@ -310,9 +339,9 @@ export default function Reception() {
             </label>
           </details>
           <div className="reception-section-heading"><h2>Reservas del {new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</h2><span>{filteredReservations.length} resultados</span></div>
-          {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
+          {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Nivel</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
             {filteredReservations.map((reservation) => <tr key={reservation.id}>
-              <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td className={`reservation-status status-${reservation.status.toLowerCase()}`}>{reservation.status}</td>
+              <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.level ? <span className="reception-level-badge" data-level={reservation.level} title={getLevel(reservation.level)?.name}>{reservation.level}</span> : '—'}</td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td className={`reservation-status status-${reservation.status.toLowerCase()}`}>{reservation.status}</td>
               <td><select value={reservation.status} disabled={saving} onChange={(event) => updateReservationStatus(reservation, event.target.value)}><option value="Confirmada">Pendiente</option><option value="Completada">Asistió</option><option value="Cancelada">Cancelada</option></select></td>
             </tr>)}
           </tbody></table></div>}

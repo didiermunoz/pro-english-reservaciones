@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../Services/api'
+import { getLevel } from '../../Services/levels'
 import { useStudent } from '../../Services/useStudent'
 import './daily-room-assignments.css'
 
@@ -200,6 +201,7 @@ export default function DailyRoomAssignments() {
                             return <label key={student.id}>
                               <input type="checkbox" checked={selected} disabled={!selected && atCapacity} onChange={(event) => toggleStudent(room.id, index, student.id, event.target.checked)} />
                               <span>{student.name}<small>{student.matricula}</small></span>
+                              {student.level && <b className="reception-level-badge" data-level={student.level} title={getLevel(student.level)?.name}>{student.level}</b>}
                             </label>
                           })}
                         </div>

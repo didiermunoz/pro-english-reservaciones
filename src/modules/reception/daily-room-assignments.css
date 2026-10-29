@@ -512,3 +512,24 @@ body:has(.daily-assignments-page) {
   .reception-tv-page *::before,
   .reception-tv-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.daily-student-options .reception-level-badge {
+  display: inline-flex;
+  min-width: 2rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: .18rem .4rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.daily-student-options .reception-level-badge[data-level="S"] { border-color: #94a3b8; color: #334155; background: #e8eef5; }
+.daily-student-options .reception-level-badge[data-level="B"] { border-color: #86efac; color: #166534; background: #dcfce7; }
+.daily-student-options .reception-level-badge[data-level="I"] { border-color: #93c5fd; color: #1d4ed8; background: #dbeafe; }
+.daily-student-options .reception-level-badge[data-level="IA"] { border-color: #fdba74; color: #c2410c; background: #ffedd5; }
+.daily-student-options .reception-level-badge[data-level="A"] { border-color: #d8b4fe; color: #7e22ce; background: #f3e8ff; }

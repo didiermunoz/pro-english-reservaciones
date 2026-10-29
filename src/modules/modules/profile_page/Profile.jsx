@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatHour } from '../../../Services/scheduleUtils'
+import { canCancelReservation, formatHour } from '../../../Services/scheduleUtils'
+import { getLevel } from '../../../Services/levels'
 import { useStudent } from '../../../Services/useStudent'
 import './Profile.css'
 import './ProfileApi.css'
@@ -22,6 +23,7 @@ const groupReservations = (reservations) => reservations.reduce((groups, reserva
     ids: [reservation.id],
     dateKey: reservation.dateKey,
     title: reservation.lesson,
+    startTime: reservation.startTime,
     startHour: reservation.startHour,
     endHour: reservation.endHour,
     time: `${formatHour(reservation.startHour)} - ${formatHour(reservation.endHour)}`,
@@ -106,6 +108,7 @@ export const Profile = () => {
             <h2>{currentStudent.name}</h2>
             <div className="profile-tags">
               <span className="badge-id">Matrícula: {currentStudent.matricula}</span>
+              <span className="badge-id">Nivel: {currentStudent.level ? `${currentStudent.level} · ${getLevel(currentStudent.level)?.name}` : 'Sin asignar'}</span>
               <span className="badge-level">Estudiante</span>
             </div>
           </div>
@@ -136,7 +139,7 @@ export const Profile = () => {
           {upcomingClasses.length === 0 ? <div className="empty-card"><p>No tienes clases confirmadas.</p></div> : <div className="classes-stack">
             {upcomingClasses.map((item) => <div key={item.id} className="class-item">
               <div className="class-info"><h4>{item.title}</h4><p>Fecha: {formatDate(item.dateKey)}</p><p>Horario: {item.time}</p></div>
-              <button className="btn-cancel" type="button" disabled={loading} onClick={() => setPendingCancellation(item)}>Cancelar bloque ({item.ids.length} {item.ids.length === 1 ? 'hora' : 'horas'})</button>
+              <button className="btn-cancel" type="button" disabled={loading || !canCancelReservation(item)} onClick={() => setPendingCancellation(item)}>Cancelar bloque ({item.ids.length} {item.ids.length === 1 ? 'hora' : 'horas'})</button>
             </div>)}
           </div>}
 

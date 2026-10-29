@@ -1,6 +1,8 @@
 import CurrentDateTime from './CurrentDateTime'
+import { getLevel } from '../Services/levels'
+import { formatModality } from '../Services/scheduleUtils'
 
-export default function ContractHero({ student, selectedCount, studentHours, attendanceMode, onAttendanceModeChange }) {
+export default function ContractHero({ student, selectedCount, studentHours }) {
   const remainingHours = studentHours - selectedCount
   const progressPercent = studentHours > 0 ? (selectedCount / studentHours) * 100 : 0
   const contract = student?.contract
@@ -20,8 +22,9 @@ export default function ContractHero({ student, selectedCount, studentHours, att
         <div className="section-heading compact-heading"><span>Resumen de contrato</span><span className="lock-icon" aria-label="Solo lectura">⌑</span></div>
         <div className="contract-grid">
           <div className="contract-item"><span>Vigencia del Curso</span><strong>{startDate} - {endDate}</strong></div>
-          <div className="contract-item"><span>Modalidad Asignada</span>{modality === 'Hibrida' ? <div className="modality-picker" role="group" aria-label="Modalidad de la reserva"><label className={attendanceMode === 'in-person' ? 'chosen' : ''}><input type="radio" name="attendance-mode" checked={attendanceMode === 'in-person'} onChange={() => onAttendanceModeChange('in-person')} />Presencial</label><label className={attendanceMode === 'online' ? 'chosen' : ''}><input type="radio" name="attendance-mode" checked={attendanceMode === 'online'} onChange={() => onAttendanceModeChange('online')} />En línea</label></div> : <strong className="modality-value">{modality}</strong>}</div>
+          <div className="contract-item"><span>Modalidad Asignada</span><strong className="modality-value">{formatModality(modality)}</strong></div>
           <div className="contract-item"><span>Matrícula</span><strong>{student?.matricula}</strong></div>
+          <div className="contract-item"><span>Nivel</span><strong>{student?.level ? `${student.level} · ${getLevel(student.level)?.name}` : 'Sin asignar'}</strong></div>
         </div>
       </div>
       <CurrentDateTime />

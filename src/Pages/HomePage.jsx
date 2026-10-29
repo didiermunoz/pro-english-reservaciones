@@ -31,7 +31,6 @@ export default function HomePage({ onNavigate }) {
   const [availabilityError, setAvailabilityError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
-  const [attendanceMode, setAttendanceMode] = useState('in-person')
   const now = new Date()
   const simulatedHour = now.getHours()
   const studentHours = Number(currentStudent?.contract?.weeklyHours || 0)
@@ -127,7 +126,7 @@ export default function HomePage({ onNavigate }) {
     setLoading(true)
     setNotice('')
     try {
-      await createReservations(selectedSlots, attendanceMode)
+      await createReservations(selectedSlots)
       setSelectedSlots([])
       setConfirmed(true)
       setNotice('Reservaciones guardadas correctamente.')
@@ -141,7 +140,7 @@ export default function HomePage({ onNavigate }) {
   return <div className="student-portal">
     <StudentNavbar onNavigate={onNavigate} />
     <main className="student-main">
-      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} attendanceMode={attendanceMode} onAttendanceModeChange={setAttendanceMode} />
+      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} />
       {availabilityError && <p className="schedule-closed" role="alert">{availabilityError}</p>}
       {notice && <p className="profile-alert" role="status">{notice}</p>}
       {!currentStudent.contract && <p className="schedule-closed" role="status">No tienes un contrato activo asociado a tu cuenta.</p>}

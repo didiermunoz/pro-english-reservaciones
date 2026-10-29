@@ -2,6 +2,22 @@ const SUNDAY = 0
 const SATURDAY = 6
 const SUNDAY_TO_MONDAY_OFFSET = 6
 
+export const CANCELLATION_MINUTES = 60
+export const EXPIRY_WARNING_DAYS = 7
+
+export const formatModality = (modality) => (modality === 'En Linea' ? 'En línea' : modality)
+
+export const getContractExpiry = (endDate, today = new Date()) => {
+  if (!endDate) return null
+  const days = Math.round((new Date(`${endDate}T00:00:00`) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000)
+  const status = days < 0 ? 'expired' : days <= EXPIRY_WARNING_DAYS ? 'soon' : 'ok'
+  return { status, days }
+}
+
+export const canCancelReservation = (reservation, now = new Date()) => (
+  new Date(`${reservation.dateKey}T${reservation.startTime}:00`) - now >= CANCELLATION_MINUTES * 60000
+)
+
 /** Formats a 24-hour value as a localized hour label. */
 export const formatHour = (hour) => {
   const period = hour >= 12 ? 'PM' : 'AM'

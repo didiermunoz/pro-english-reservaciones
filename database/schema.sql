@@ -10,6 +10,7 @@ CREATE TABLE estudiantes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     matricula VARCHAR(20) NOT NULL UNIQUE,
     nombre_completo VARCHAR(150) NOT NULL,
+    nivel ENUM('S', 'B', 'I', 'IA', 'A') NULL,
     password VARCHAR(255) NOT NULL,
     debe_cambiar_password BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -311,3 +311,39 @@ body:has(.reception-workspace) {
   .reception-workspace *::before,
   .reception-workspace *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.reception-level-badge {
+  display: inline-flex;
+  min-width: 2rem;
+  align-items: center;
+  justify-content: center;
+  padding: .18rem .4rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.reception-level-badge[data-level="S"] { border-color: #94a3b8; color: #334155; background: #e8eef5; }
+.reception-level-badge[data-level="B"] { border-color: #86efac; color: #166534; background: #dcfce7; }
+.reception-level-badge[data-level="I"] { border-color: #93c5fd; color: #1d4ed8; background: #dbeafe; }
+.reception-level-badge[data-level="IA"] { border-color: #fdba74; color: #c2410c; background: #ffedd5; }
+.reception-level-badge[data-level="A"] { border-color: #d8b4fe; color: #7e22ce; background: #f3e8ff; }
+
+.reception-expiry-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .45rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.reception-expiry-badge[data-status="expired"] { border-color: #fca5a5; color: #b91c1c; background: #fee2e2; }
+.reception-expiry-badge[data-status="soon"] { border-color: #fcd34d; color: #b45309; background: #fef3c7; }
+.reception-expiry-badge[data-status="ok"] { border-color: #86efac; color: #166534; background: #dcfce7; }

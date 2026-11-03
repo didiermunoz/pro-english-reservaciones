@@ -248,6 +248,37 @@
   }
 }
 
+@media (max-width: 700px) {
+  .profile-page :where(a, button, input):active {
+    transform: scale(.97);
+  }
+
+  .profile-page :where(a, button, input):focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .32);
+    outline-offset: 3px;
+  }
+}
+
+@media (hover: hover) and (max-width: 700px) {
+  .profile-page .stat-card:hover,
+  .profile-page .class-item:hover,
+  .profile-page .side-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .1);
+  }
+}
+
+@media (max-width: 700px) and (prefers-reduced-motion: reduce) {
+  .profile-page *,
+  .profile-page *::before,
+  .profile-page *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 /* === Classes and history === */
 .section-header-actions {
   display: flex;
@@ -416,5 +447,534 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.9rem;
+  }
+}
+
+.contract-summary {
+  margin: 0 0 1rem;
+  padding: .75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-white);
+  box-shadow: var(--shadow-sm);
+}
+
+.contract-summary-toggle {
+  width: 100%;
+  min-height: 44px;
+  padding: .6rem .75rem;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--primary-blue);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contract-summary-content dl {
+  margin: .5rem 0 0;
+}
+
+.contract-summary-content dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .65rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contract-summary-content dl > div:last-child {
+  border-bottom: 0;
+}
+
+.contract-summary-content dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.contract-summary-content dd {
+  margin: 0;
+  color: var(--text-dark);
+  font-weight: 700;
+  text-align: right;
+}
+
+.contract-summary-content p {
+  margin: .75rem 0 .25rem;
+  color: var(--text-muted);
+}
+
+/* === Mobile-first student fixes === */
+@media (max-width: 700px) {
+  .profile-container,
+  .profile-container * {
+    box-sizing: border-box;
+  }
+
+  .profile-container {
+    width: 100%;
+    min-height: 100svh;
+    margin: 0;
+    padding: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-cta-row {
+    margin-bottom: 10px;
+  }
+
+  .profile-home-button {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 1rem;
+  }
+
+  .profile-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .profile-identity-block {
+    flex: 1 1 100%;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .profile-avatar {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+  }
+
+  .profile-info {
+    min-width: 0;
+  }
+
+  .profile-info h2 {
+    font-size: 1.3rem;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-tags {
+    gap: 6px;
+  }
+
+  .badge-id,
+  .badge-level {
+    font-size: .8125rem;
+  }
+
+  .profile-logout-button {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .stat-card,
+  .side-card {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .stat-header,
+  .section-header-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stat-card h3,
+  .stat-chip,
+  .stat-subtext,
+  .notice-banner,
+  .class-info p,
+  .history-simple-item strong,
+  .history-simple-item small,
+  .empty-card {
+    font-size: .8125rem;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .section-header-actions {
+    margin-bottom: 10px;
+  }
+
+  .section-header-actions h3,
+  .side-card h3 {
+    min-width: 0;
+    font-size: 1rem;
+  }
+
+  .class-item {
+    align-items: stretch;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .class-info {
+    min-width: 0;
+  }
+
+  .btn-cancel,
+  .demo-switcher button {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 1rem;
+  }
+
+  .profile-edit-form {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .profile-edit-form label {
+    flex: 1 1 auto;
+    font-size: .8125rem;
+  }
+
+  .profile-edit-form input {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .profile-edit-form button,
+  .profile-confirm button {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .profile-alert,
+  .profile-confirm {
+    width: 100%;
+    padding: 12px;
+    font-size: .875rem;
+  }
+
+  .profile-container :where(
+    .demo-switcher small,
+    .badge-id,
+    .badge-level,
+    .stat-card h3,
+    .stat-chip,
+    .stat-subtext,
+    .notice-banner,
+    .class-info p,
+    .history-simple-item strong,
+    .history-simple-item small,
+    .empty-card,
+    .profile-edit-form label
+  ) {
+    font-size: .8125rem;
+  }
+
+  .profile-container .btn-cancel {
+    font-size: 16px;
+  }
+
+  .profile-container .profile-alert,
+  .profile-container .profile-confirm {
+    font-size: .875rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .contract-summary {
+    padding: .65rem;
+  }
+
+  .contract-summary-content dl > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .2rem;
+  }
+
+  .contract-summary-content dd {
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* === Apple-style account mobile === */
+@media (max-width: 700px) {
+  .profile-page {
+    --tabbar-h: 66px;
+    --action-bar-h: 0px;
+    min-height: 100svh;
+    overflow-x: clip;
+    background: #f5f5f7;
+    font-family: -apple-system, 'SF Pro Display', Inter, system-ui, sans-serif;
+  }
+
+  .profile-page .student-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    min-height: 0;
+    gap: 0 12px;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 20px 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .profile-page .student-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .profile-page .mobile-page-title {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .profile-page .student-account {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+
+  .profile-page .student-nav {
+    display: none;
+  }
+
+  .profile-page .student-tabbar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    min-height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding: 6px 24px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(15, 23, 42, .08);
+    background: rgba(255, 255, 255, .76);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .profile-container {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+    background: transparent;
+    font-family: -apple-system, 'SF Pro Display', Inter, system-ui, sans-serif;
+  }
+
+  .profile-cta-row {
+    display: none;
+  }
+
+  .profile-header {
+    align-items: center;
+    padding: 16px;
+    border: 1px solid rgba(15, 23, 42, .05);
+    border-radius: 22px;
+    color: #0f172a;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .06), 0 1px 2px rgba(15, 23, 42, .04);
+  }
+
+  .profile-info h2 {
+    color: #0f172a;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+  }
+
+  .profile-avatar {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+  }
+
+  .badge-id {
+    color: #475569;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+  }
+
+  .badge-level {
+    background: #eff6ff;
+  }
+
+  .stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 12px;
+  }
+
+  .stat-card,
+  .main-content,
+  .side-card,
+  .contract-summary,
+  .class-item,
+  .empty-card {
+    border: 1px solid rgba(15, 23, 42, .05);
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .06), 0 1px 2px rgba(15, 23, 42, .04);
+  }
+
+  .stat-card,
+  .side-card {
+    padding: 16px;
+  }
+
+  .stat-card h3 {
+    color: #64748b;
+    font-size: .8125rem;
+  }
+
+  .stat-chip {
+    font-size: .8125rem;
+  }
+
+  .profile-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .main-content {
+    min-width: 0;
+    padding: 16px;
+  }
+
+  .section-header-actions {
+    align-items: center;
+  }
+
+  .section-header-actions h3,
+  .side-card h3 {
+    color: #0f172a;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+  }
+
+  .notice-banner {
+    border-radius: 14px;
+    font-size: 1rem;
+  }
+
+  .class-item {
+    padding: 14px;
+  }
+
+  .class-info h4 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .class-info p,
+  .history-simple-item strong,
+  .history-simple-item small,
+  .stat-subtext,
+  .empty-card {
+    font-size: .875rem;
+  }
+
+  .contract-summary {
+    padding: 10px;
+  }
+
+  .contract-summary-toggle {
+    min-height: 48px;
+    border-radius: 14px;
+    font-size: 1rem;
+  }
+
+  .contract-summary-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: max-height 220ms cubic-bezier(.2, .8, .2, 1), opacity 180ms ease, transform 180ms ease;
+  }
+
+  .contract-summary-content.is-open {
+    max-height: 420px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .contract-summary-content dl > div {
+    min-height: 44px;
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
+    font-size: .875rem;
+  }
+
+  .contract-summary-content dt,
+  .contract-summary-content dd {
+    font-size: .875rem;
+  }
+
+  .profile-logout-bottom {
+    width: 100%;
+    min-height: 52px;
+    margin: 16px 0 0;
+    border: 1px solid rgba(220, 38, 38, .12);
+    border-radius: 16px;
+    color: #dc2626;
+    background: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
+  }
+
+  .profile-container :where(
+    .badge-id,
+    .badge-level,
+    .stat-card h3,
+    .stat-chip,
+    .stat-subtext,
+    .notice-banner,
+    .class-info p,
+    .history-simple-item strong,
+    .history-simple-item small,
+    .empty-card,
+    .contract-summary-content dt,
+    .contract-summary-content dd
+  ) {
+    font-size: .8125rem;
+  }
+
+  .profile-container button,
+  .profile-container input {
+    font-size: 16px;
+  }
+
+  .profile-container .contract-summary-toggle,
+  .profile-container .profile-logout-bottom {
+    font-size: 1rem;
   }
 }

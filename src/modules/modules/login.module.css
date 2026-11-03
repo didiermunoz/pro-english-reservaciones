@@ -427,3 +427,95 @@
     font-size: 2rem;
   }
 }
+
+/* === Mobile-first student fixes === */
+@media (max-width: 700px) {
+  .page:not(.receptionPage) {
+    width: 100%;
+    min-height: 100svh;
+    grid-template-columns: minmax(0, 1fr);
+    overflow-wrap: anywhere;
+  }
+
+  .page:not(.receptionPage) .brandPanel {
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .page:not(.receptionPage) .logo {
+    width: 96px;
+    margin-bottom: 0;
+    padding: 6px;
+  }
+
+  .page:not(.receptionPage) .brandContent {
+    margin-top: 12px;
+  }
+
+  .page:not(.receptionPage) .brandContent h1 {
+    max-width: none;
+    font-size: clamp(1.4rem, 6vw, 1.9rem);
+  }
+
+  .page:not(.receptionPage) .brandFooter {
+    display: none;
+  }
+
+  .page:not(.receptionPage) .formPanel {
+    width: 100%;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .page:not(.receptionPage) .formWrapper {
+    width: 100%;
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+
+  .page:not(.receptionPage) .heading {
+    margin-bottom: 16px;
+  }
+
+  .page:not(.receptionPage) .heading h2 {
+    font-size: 1.75rem;
+  }
+
+  .page:not(.receptionPage) .heading p:last-child {
+    font-size: 1rem;
+  }
+
+  .page:not(.receptionPage) .form {
+    gap: 14px;
+  }
+
+  .page:not(.receptionPage) .form label,
+  .page:not(.receptionPage) .kicker,
+  .page:not(.receptionPage) .eyebrow {
+    font-size: .8125rem;
+  }
+
+  .page:not(.receptionPage) .form input,
+  .page:not(.receptionPage) .form select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+
+  .page:not(.receptionPage) .passwordToggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .page:not(.receptionPage) .submitButton,
+  .page:not(.receptionPage) .modeToggle {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .page:not(.receptionPage) .loginAlert {
+    padding: 12px;
+    font-size: .875rem;
+  }
+}

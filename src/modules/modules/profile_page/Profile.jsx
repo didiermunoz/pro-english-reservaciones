@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { canCancelReservation, formatHour } from '../../../Services/scheduleUtils'
 import { getLevel } from '../../../Services/levels'
 import { useStudent } from '../../../Services/useStudent'
+import ContractSummary from '../../../Components/ContractSummary'
+import StudentNavbar from '../../../Components/StudentNavbar'
 import './Profile.css'
 import './ProfileApi.css'
 
@@ -99,7 +101,9 @@ export const Profile = () => {
   }
 
   return (
-    <div className="profile-container">
+    <div className="profile-page">
+      <StudentNavbar showLogout={false} />
+      <div className="profile-container">
       <div className="profile-cta-row"><Link className="profile-home-button" to="/home">Ir a Inicio</Link></div>
       <header className="profile-header">
         <div className="profile-identity-block">
@@ -113,10 +117,10 @@ export const Profile = () => {
             </div>
           </div>
         </div>
-        <button className="profile-logout-button" type="button" onClick={handleLogout}>Cerrar sesión</button>
       </header>
 
       {notice && <p className="profile-alert" role="status">{notice}</p>}
+      <ContractSummary student={currentStudent} />
 
       <section className="stats-grid stats-grid-single">
         <div className="stat-card stat-card-highlight">
@@ -155,6 +159,8 @@ export const Profile = () => {
             {pastClasses.map((item) => <li key={item.id} className="history-simple-item"><strong>{item.lesson}</strong><small>{formatDate(item.dateKey)} · {formatHour(item.startHour)} - {formatHour(item.endHour)}</small></li>)}
           </ul>}
         </div></aside>
+      </div>
+      <button className="profile-logout-button profile-logout-bottom" type="button" onClick={handleLogout}>Cerrar sesión</button>
       </div>
     </div>
   )

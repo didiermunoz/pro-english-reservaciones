@@ -1,30 +1,43 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { clearAuthSession, getStoredAuthSession, saveAuthSession } from './auth'
 import { StudentContext } from './StudentContextBase'
+
+const isInvalidSessionError = (error) => (
+  error?.status === 401 || (error?.status === 403 && error?.code === 'AUTH_INVALID')
+)
+
+const updateIfChanged = (ref, setter, value) => {
+  if (JSON.stringify(ref.current) === JSON.stringify(value)) return false
+  ref.current = value
+  setter(value)
+  return true
+}
 
 export function StudentProvider({ children }) {
   const [session, setSession] = useState(getStoredAuthSession)
   const [user, setUser] = useState(session?.user || null)
   const [reservations, setReservations] = useState([])
-  const [resolvedToken, setResolvedToken] = useState(session?.token || null)
   const [loadingSession, setLoadingSession] = useState(Boolean(session?.token))
+  const sessionRef = useRef(session)
+  const userRef = useRef(user)
+  const reservationsRef = useRef(reservations)
+  const lastSyncAt = useRef(0)
 
   const acceptSession = useCallback((payload) => {
     const nextSession = { token: payload.token, user: payload.user }
+    updateIfChanged(sessionRef, setSession, nextSession)
+    updateIfChanged(userRef, setUser, payload.user)
+    updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
     saveAuthSession(nextSession)
-    setSession(nextSession)
-    setUser(payload.user)
-    setReservations(payload.reservations || [])
   }, [])
 
   const logout = useCallback(() => {
-    clearAuthSession()
-    setSession(null)
-    setUser(null)
-    setReservations([])
-    setResolvedToken(null)
+    updateIfChanged(sessionRef, setSession, null)
+    updateIfChanged(userRef, setUser, null)
+    updateIfChanged(reservationsRef, setReservations, [])
     setLoadingSession(false)
+    clearAuthSession()
   }, [])
 
   const token = session?.token || null
@@ -34,52 +47,54 @@ export function StudentProvider({ children }) {
       setLoadingSession(false)
       return
     }
-    setLoadingSession(true)
     try {
       const payload = await api.me(token)
-      setUser(payload.user)
-      setReservations(payload.reservations || [])
-      const nextSession = { ...session, user: payload.user }
-      saveAuthSession(nextSession)
-      setSession(nextSession)
-      setResolvedToken(token)
-    } catch {
-      logout()
-    } finally {
-      setLoadingSession(false)
+      updateIfChanged(userRef, setUser, payload.user)
+      updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
+      const nextSession = { ...(sessionRef.current || { token }), user: payload.user }
+      updateIfChanged(sessionRef, setSession, nextSession)
+      if (JSON.stringify(getStoredAuthSession()) !== JSON.stringify(nextSession)) {
+        saveAuthSession(nextSession)
+      }
+    } catch (error) {
+      if (isInvalidSessionError(error)) logout()
     }
-  }, [session, token, logout])
+  }, [token, logout])
 
   const createReservations = useCallback(async (slots, modality) => {
     const payload = await api.createReservations(token, slots, modality)
-    setReservations(payload.reservations || [])
+    updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
     return payload.reservations || []
   }, [token])
 
   const cancelReservations = useCallback(async (ids) => {
     const payload = await api.cancelReservations(token, ids)
-    setReservations(payload.reservations || [])
+    updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
     return payload.reservations || []
   }, [token])
 
   const updateProfile = useCallback(async (updates) => {
     const payload = await api.updateProfile(session.token, updates)
-    setUser(payload.user)
     const nextSession = { ...session, user: payload.user }
-    saveAuthSession(nextSession)
-    setSession(nextSession)
+    updateIfChanged(userRef, setUser, payload.user)
+    updateIfChanged(sessionRef, setSession, nextSession)
+    if (JSON.stringify(getStoredAuthSession()) !== JSON.stringify(nextSession)) {
+      saveAuthSession(nextSession)
+    }
     return payload.user
   }, [session])
 
   useEffect(() => {
     const handleSessionChange = () => {
       const nextSession = getStoredAuthSession()
-      setSession(nextSession)
-      setUser(nextSession?.user || null)
-      setResolvedToken(nextSession?.token || null)
-      setLoadingSession(Boolean(nextSession?.token))
+      const nextUser = nextSession?.user || null
+      updateIfChanged(sessionRef, setSession, nextSession)
+      updateIfChanged(userRef, setUser, nextUser)
       if (!nextSession) {
-        setReservations([])
+        updateIfChanged(reservationsRef, setReservations, [])
+        setLoadingSession(false)
+      } else if (nextUser) {
+        setLoadingSession(false)
       }
     }
     window.addEventListener('pro-english-auth-change', handleSessionChange)
@@ -92,34 +107,43 @@ export function StudentProvider({ children }) {
       setLoadingSession(false)
       return undefined
     }
+    let initialSyncPending = true
     const syncWithApi = async () => {
-      setLoadingSession(true)
+      lastSyncAt.current = Date.now()
+      const initialSync = initialSyncPending
+      initialSyncPending = false
       try {
         const payload = await api.me(token)
         if (!active) return
-        setUser(payload.user)
-        if (payload.reservations) setReservations(payload.reservations)
+        updateIfChanged(userRef, setUser, payload.user)
+        if (payload.reservations) {
+          updateIfChanged(reservationsRef, setReservations, payload.reservations)
+        }
         const storedSession = getStoredAuthSession()
-        const nextSession = { ...storedSession, user: payload.user }
-        saveAuthSession(nextSession)
-        setSession(nextSession)
-        setResolvedToken(token)
-      } catch {
-        if (active) logout()
+        const nextSession = { ...(storedSession || sessionRef.current || { token }), user: payload.user }
+        updateIfChanged(sessionRef, setSession, nextSession)
+        if (JSON.stringify(storedSession) !== JSON.stringify(nextSession)) {
+          saveAuthSession(nextSession)
+        }
+      } catch (error) {
+        if (active && isInvalidSessionError(error)) logout()
       } finally {
-        if (active) setLoadingSession(false)
+        if (active && initialSync) setLoadingSession(false)
       }
     }
-    syncWithApi()
+    void syncWithApi()
     const interval = window.setInterval(() => syncWithApi(), 30000)
-    const onFocus = () => syncWithApi()
+    const onFocus = () => {
+      if (Date.now() - lastSyncAt.current >= 15000) void syncWithApi()
+    }
     window.addEventListener('focus', onFocus)
-    window.addEventListener('pro-english-refresh', onFocus)
+    const onRefresh = () => { void syncWithApi() }
+    window.addEventListener('pro-english-refresh', onRefresh)
     return () => {
       active = false
       window.clearInterval(interval)
       window.removeEventListener('focus', onFocus)
-      window.removeEventListener('pro-english-refresh', onFocus)
+      window.removeEventListener('pro-english-refresh', onRefresh)
     }
   }, [token, logout])
 

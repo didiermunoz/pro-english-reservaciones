@@ -11,3 +11,38 @@
 .profile-edit-form input { min-height: 42px; padding: .6rem .75rem; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
 .profile-edit-form .profile-home-button { min-height: 42px; padding: .6rem 1rem; border-radius: 7px; font-size: .82rem; }
 @media (max-width: 540px) { .profile-identity-block { gap: .8rem; } .profile-logout-button { font-size: .72rem; padding: .55rem .65rem; } }
+
+/* === Mobile-first student fixes === */
+@media (max-width: 700px) {
+  .profile-alert,
+  .profile-confirm {
+    width: 100%;
+    padding: .75rem;
+    font-size: .875rem;
+  }
+
+  .profile-confirm button,
+  .profile-edit-form button,
+  .profile-edit-form .profile-home-button,
+  .profile-logout-button {
+    min-height: 44px;
+    padding: .6rem .75rem;
+    font-size: 1rem;
+  }
+
+  .profile-edit-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-edit-form label {
+    flex: 1 1 auto;
+    font-size: .8125rem;
+  }
+
+  .profile-edit-form input {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+}

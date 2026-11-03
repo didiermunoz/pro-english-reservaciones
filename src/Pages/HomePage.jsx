@@ -26,11 +26,11 @@ const createSlots = (date, startHour, endHour) => Array.from({ length: endHour -
 export default function HomePage({ onNavigate }) {
   const { currentStudent, reservations, token, createReservations } = useStudent()
   const [selectedSlots, setSelectedSlots] = useState([])
-  const [confirmed, setConfirmed] = useState(false)
   const [availability, setAvailability] = useState([])
   const [availabilityError, setAvailabilityError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
   const now = new Date()
   const simulatedHour = now.getHours()
   const studentHours = Number(currentStudent?.contract?.weeklyHours || 0)
@@ -49,6 +49,12 @@ export default function HomePage({ onNavigate }) {
     label: formatDate(date),
     key: toDateKey(date),
   })), [])
+
+  useEffect(() => {
+    if (notice !== 'Reservaciones guardadas correctamente.') return undefined
+    const timeout = window.setTimeout(() => setNotice(''), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [notice])
 
   // Slots
   const slotsByDate = useMemo(() => selectableDates.reduce((slots, { date, key }) => {
@@ -78,7 +84,7 @@ export default function HomePage({ onNavigate }) {
       window.clearInterval(interval)
       window.removeEventListener('focus', refreshAvailability)
     }
-  }, [token, selectableDates])
+  }, [token, selectableDates, refreshTick])
 
   const weekStartKey = toDateKey(weekDates[0])
   const weekEndKey = useMemo(() => {
@@ -86,24 +92,34 @@ export default function HomePage({ onNavigate }) {
     date.setDate(date.getDate() + 7)
     return toDateKey(date)
   }, [weekDates])
-  const weekReservations = useMemo(() => reservations.filter((reservation) => (
-    ['Confirmada', 'Completada'].includes(reservation.status) && reservation.dateKey >= weekStartKey && reservation.dateKey < weekEndKey
+  const bookingWeekStart = useMemo(() => getMonday(selectableDates[0].date), [selectableDates])
+  const bookingWeekStartKey = toDateKey(bookingWeekStart)
+  const bookingWeekEndKey = useMemo(() => {
+    const date = new Date(bookingWeekStart)
+    date.setDate(date.getDate() + 7)
+    return toDateKey(date)
+  }, [bookingWeekStart])
+  const bookingWeekReservations = useMemo(() => reservations.filter((reservation) => (
+    ['Confirmada', 'Completada'].includes(reservation.status) && reservation.dateKey >= bookingWeekStartKey && reservation.dateKey < bookingWeekEndKey
+  )), [reservations, bookingWeekStartKey, bookingWeekEndKey])
+  const currentWeekReservations = useMemo(() => reservations.filter((reservation) => (
+    reservation.dateKey >= weekStartKey && reservation.dateKey < weekEndKey
   )), [reservations, weekStartKey, weekEndKey])
-  const bookedHours = weekReservations.reduce((total, reservation) => total + reservation.endHour - reservation.startHour, 0)
-  const scheduledSlotIds = useMemo(() => new Set(weekReservations.flatMap((reservation) => (
+  const bookedHours = bookingWeekReservations.reduce((total, reservation) => total + reservation.endHour - reservation.startHour, 0)
+  const scheduledSlotIds = useMemo(() => new Set(bookingWeekReservations.flatMap((reservation) => (
     Array.from({ length: reservation.endHour - reservation.startHour }, (_, index) => `${reservation.dateKey}-${reservation.startHour + index}`)
-  ))), [weekReservations])
+  ))), [bookingWeekReservations])
   const totalScheduledHours = bookedHours + selectedSlots.length
-  const completedClasses = useMemo(() => reservations.filter((item) => item.status === 'Completada').map((item) => ({
+  const completedClasses = useMemo(() => currentWeekReservations.filter((item) => item.status === 'Completada').map((item) => ({
     id: item.id,
     dateKey: item.dateKey,
     lesson: item.lesson,
     time: `${formatHour(item.startHour)} - ${formatHour(item.endHour)}`,
-  })), [reservations])
+  })), [currentWeekReservations])
   const availabilityBySlot = useMemo(() => new Map(availability.map((item) => [`${item.dateKey}-${item.hour}`, item])), [availability])
 
   const toggleSlot = (slot) => {
-    if (scheduleClosed || !slot || availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)?.available !== true || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || confirmed || studentHours === 0) return
+    if (scheduleClosed || !slot || availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)?.available !== true || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || studentHours === 0) return
     setSelectedSlots((currentSlots) => {
       if (currentSlots.some((currentSlot) => currentSlot.id === slot.id)) {
         return currentSlots.filter((currentSlot) => currentSlot.id !== slot.id)
@@ -128,8 +144,8 @@ export default function HomePage({ onNavigate }) {
     try {
       await createReservations(selectedSlots)
       setSelectedSlots([])
-      setConfirmed(true)
       setNotice('Reservaciones guardadas correctamente.')
+      setRefreshTick((current) => current + 1)
     } catch (error) {
       setNotice(error.message)
     } finally {
@@ -139,15 +155,15 @@ export default function HomePage({ onNavigate }) {
 
   return <div className="student-portal">
     <StudentNavbar onNavigate={onNavigate} />
-    <main className="student-main">
+    <main className={`student-main${selectedSlots.length ? ' has-selection' : ''}`}>
       <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} />
       {availabilityError && <p className="schedule-closed" role="alert">{availabilityError}</p>}
       {notice && <p className="profile-alert" role="status">{notice}</p>}
       {!currentStudent.contract && <p className="schedule-closed" role="status">No tienes un contrato activo asociado a tu cuenta.</p>}
-      <ScheduleSection closed={scheduleClosed} confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
+      <ScheduleSection closed={scheduleClosed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
       <WeekProgress completedClasses={completedClasses} weekDates={weekDates} />
     </main>
-    <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} loading={loading} />
+    <SelectionActionBar formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} loading={loading} />
     <SchoolFooter /> 
   </div>
 }

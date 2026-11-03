@@ -14,12 +14,13 @@ function ClassRecord({ classRecord }) {
 
 function ProgressDay({ date, completedClasses }) {
   const dateKey = toDateKey(date)
+  const isToday = dateKey === toDateKey(new Date())
   const classes = completedClasses.filter((classRecord) => classRecord.dateKey === dateKey)
   const dayLabel = date.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '')
   const classCountLabel = classes.length === 1 ? 'clase' : 'clases'
 
   return (
-    <article className={`progress-day ${classes.length ? 'has-classes' : ''}`} key={dateKey}>
+    <article className={`progress-day ${classes.length ? 'has-classes' : ''} ${isToday ? 'today' : ''}`} key={dateKey}>
       <div className="progress-day-heading">
         <strong>{dayLabel}</strong>
         <span>{formatDate(date)}</span>

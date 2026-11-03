@@ -21,7 +21,7 @@ function NotFoundPage() {
 
 function ProtectedRoute({ children, role, allowPasswordChange = false }) {
   const { user, loadingSession } = useStudent()
-  if (loadingSession) return <main className="route-loading" aria-live="polite">Cargando sesión...</main>
+  if (loadingSession && !user) return <main className="route-loading" aria-live="polite">Cargando sesión...</main>
   if (!user) return <Navigate to="/login" replace />
   if (role && user.role !== role) {
     const message = role === 'reception' ? 'No tienes permisos de Recepción para acceder a este módulo.' : 'No tienes permisos para acceder a este módulo.'

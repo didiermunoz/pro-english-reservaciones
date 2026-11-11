@@ -32,6 +32,10 @@ Comprueba `GET /api/health` para verificar que MySQL está conectado. `npm run b
 
 Para habilitar las asignaciones diarias de salones, aplica una vez `npm run db:migrate:daily-rooms` después de configurar `.env`. El módulo queda disponible en `/recepcion/asignacion-diaria` y la vista para monitor en `/recepcion/pantalla-tv`.
 
+## Aplicación web progresiva (PWA)
+
+Vite genera el manifiesto y registra el service worker para producción. Los íconos de instalación están en `public/pwa-192x192.png` y `public/pwa-512x512.png`; Safari/iOS usa `public/apple-touch-icon.png`.
+
 Para preparar datos de muestra para una revisión, ejecuta `npm run db:seed:demo` en un entorno que no sea producción. El comando conserva las reservas existentes, agrega reservas hasta alcanzar cantidades variadas según las horas semanales de cada estudiante registrado, crea los salones numerados del 1 al 8 si faltan y distribuye los bloques de hoy en salones distintos para la pantalla TV y el editor. Requiere que ya se hayan creado los estudiantes y que la migración diaria esté aplicada; no crea credenciales de prueba.
 
 Si `recepcion` está vacía, configura `BOOTSTRAP_RECEPTION_USERNAME`, `BOOTSTRAP_RECEPTION_NAME` y una contraseña privada de al menos 12 caracteres en `.env`, ejecuta `npm run bootstrap:reception` una sola vez y retira la contraseña del archivo. El comando se niega a crear cuentas si ya existe una. No se incluye un usuario de demostración ni una contraseña predecible.

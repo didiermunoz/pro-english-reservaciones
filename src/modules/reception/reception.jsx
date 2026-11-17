@@ -12,7 +12,7 @@ const todayKey = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
-const emptyForm = { matricula: '', name: '', level: '', modality: '', contractEnd: '' }
+const emptyForm = { matricula: '', name: '', level: '', modality: '', contractEnd: '', weeklyHours: 6 }
 const emptyRoomForm = { name: '', morningTeacher: '', afternoonTeacher: '', capacity: 10 }
 const emptyLessonForm = { order: '', title: '', type: 'Leccion' }
 
@@ -27,6 +27,7 @@ export default function Reception() {
   const [date, setDate] = useState(todayKey)
   const [query, setQuery] = useState('')
   const [reservationHour, setReservationHour] = useState('')
+  const [reservationStatus, setReservationStatus] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
@@ -47,9 +48,9 @@ export default function Reception() {
   }, [token])
 
   const loadReservations = useCallback(async () => {
-    const result = await api.receptionReservations(token, date)
+    const result = await api.receptionReservations(token, date, reservationStatus)
     setReservations(result.reservations || [])
-  }, [token, date])
+  }, [token, date, reservationStatus])
 
   const loadRooms = useCallback(async () => {
     const result = await api.receptionRooms(token)
@@ -73,7 +74,7 @@ export default function Reception() {
 
   useEffect(() => {
     let active = true
-    Promise.all([api.receptionStudents(token), api.receptionReservations(token, date), api.receptionRooms(token), api.receptionLessons(token)])
+    Promise.all([api.receptionStudents(token), api.receptionReservations(token, date, reservationStatus), api.receptionRooms(token), api.receptionLessons(token)])
       .then(([studentResult, reservationResult, roomResult, lessonResult]) => {
         if (!active) return
         setStudents(studentResult.students || [])
@@ -90,7 +91,7 @@ export default function Reception() {
       active = false
       window.clearInterval(interval)
     }
-  }, [token, date, loadStudents, loadReservations, loadRooms, loadLessons])
+  }, [token, date, reservationStatus, loadStudents, loadReservations, loadRooms, loadLessons])
 
   const filteredStudents = students.filter((student) => (
     `${student.name} ${student.matricula}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
@@ -112,6 +113,7 @@ export default function Reception() {
       level: student.level || '',
       modality: ['Presencial', 'En Linea'].includes(student.contract?.modality) ? student.contract.modality : '',
       contractEnd: student.contract?.endDate || '',
+      weeklyHours: student.contract?.weeklyHours || 6,
     })
     setNotice('')
     setTemporaryPassword('')
@@ -142,7 +144,7 @@ export default function Reception() {
     setNotice('')
     setTemporaryPassword('')
     try {
-      const studentData = { matricula: form.matricula.trim(), name: form.name.trim(), level: form.level }
+      const studentData = { matricula: form.matricula.trim(), name: form.name.trim(), level: form.level, weeklyHours: Number(form.weeklyHours) }
       if (form.modality && form.contractEnd) Object.assign(studentData, { modality: form.modality, contractEnd: form.contractEnd })
       if (editingId) {
         await api.updateStudent(token, editingId, studentData)
@@ -294,7 +296,10 @@ export default function Reception() {
       <section className="reception-panel">
         <div className="reception-toolbar">
           <label className="reception-search">Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o matrícula" /></label>
-          {tab === 'reservations' && <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => { setDate(event.target.value); setReservationHour('') }} /></label>}
+          {tab === 'reservations' && <>
+            <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => { setDate(event.target.value); setReservationHour('') }} /></label>
+            <label>Estado<select value={reservationStatus} onChange={(event) => { setReservationStatus(event.target.value); setReservationHour('') }}><option value="">Sin cancelar</option><option value="Confirmada">Confirmada</option><option value="Cancelada">Cancelada</option><option value="Completada">Completada</option></select></label>
+          </>}
           <button type="button" className="reception-refresh" disabled={loading} onClick={() => { setLoading(true); setNotice(''); reload() }}>{loading ? 'Consultando...' : 'Actualizar datos'}</button>
         </div>
 
@@ -322,6 +327,7 @@ export default function Reception() {
             <label htmlFor="student-matricula">Matrícula<input id="student-matricula" value={form.matricula} onChange={(event) => setForm({ ...form, matricula: event.target.value })} required /></label>
             <label htmlFor="student-name">Nombre completo<input id="student-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
             <label htmlFor="student-level">Nivel<select id="student-level" value={form.level} onChange={(event) => setForm({ ...form, level: event.target.value })} required><option value="" disabled>Selecciona un nivel</option>{LEVELS.map((level) => <option key={level.code} value={level.code}>{level.code} — {level.name}</option>)}</select></label>
+            <label htmlFor="student-weekly-hours">Horas semanales<input id="student-weekly-hours" type="number" min="1" step="1" value={form.weeklyHours} onChange={(event) => setForm({ ...form, weeklyHours: event.target.value })} required /></label>
             <label htmlFor="student-modality">Modalidad<select id="student-modality" value={form.modality} onChange={(event) => setForm({ ...form, modality: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)}><option value="" disabled>Selecciona modalidad</option><option value="Presencial">Presencial</option><option value="En Linea">En línea</option></select></label>
             <label htmlFor="student-contract-end">Vencimiento de contrato<input id="student-contract-end" type="date" value={form.contractEnd} onChange={(event) => setForm({ ...form, contractEnd: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)} /></label>
             {!editingId && <p>Se generará una contraseña temporal segura; se mostrará una sola vez al guardar.</p>}

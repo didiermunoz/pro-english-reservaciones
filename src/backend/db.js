@@ -14,3 +14,9 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
   dateStrings: true,
 })
+
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '-06:00'", (error) => {
+    if (error) console.error('No se pudo establecer la zona horaria de MySQL.', error.code || error.message)
+  })
+})

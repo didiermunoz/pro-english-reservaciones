@@ -13,17 +13,32 @@ const displayDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('e
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
 })
 
-export default function ReceptionTvView() {
+export default function ReceptionTvView({ onTokenIssued }) {
   const { token } = useStudent()
   const [date, setDate] = useState(getTodayKey)
+  const [tvToken, setTvToken] = useState('')
   const [selectedHour, setSelectedHour] = useState('')
   const [summary, setSummary] = useState({ rooms: [], currentTime: '' })
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState('')
 
   useEffect(() => {
+    if (!token) return undefined
     let active = true
-    const refresh = () => api.receptionTvSummary(token, date)
+    api.receptionTvToken(token)
+      .then((result) => {
+        if (!active) return
+        setTvToken(result.token)
+        onTokenIssued()
+      })
+      .catch((tokenError) => { if (active) setError(tokenError.message) })
+    return () => { active = false }
+  }, [token, onTokenIssued])
+
+  useEffect(() => {
+    if (!tvToken) return undefined
+    let active = true
+    const refresh = () => api.receptionTvSummary(tvToken, date)
       .then((result) => {
         if (!active) return
         setSummary(result)
@@ -33,8 +48,11 @@ export default function ReceptionTvView() {
       .catch((refreshError) => { if (active) setError(refreshError.message) })
     refresh()
     const interval = window.setInterval(refresh, 30000)
-    return () => window.clearInterval(interval)
-  }, [token, date])
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [tvToken, date])
 
   const toggleFullscreen = async () => {
     if (document.fullscreenElement) await document.exitFullscreen()

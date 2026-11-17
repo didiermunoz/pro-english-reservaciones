@@ -10,6 +10,7 @@ export default function ContractHero({ student, selectedCount, studentHours }) {
         <h1 id="welcome-title">Hola, {firstName}</h1>
       </div>
       <CurrentDateTime />
+      <p className="contract-modality">Modalidad de tu contrato: {student?.contract?.modality || 'No disponible'}</p>
       <p className="hours-remaining">Te quedan {remainingHours} h para reservar esta semana</p>
     </section>
   )

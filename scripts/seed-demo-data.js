@@ -122,7 +122,7 @@ async function seedDemoData() {
         weeklyHours = Math.max(1, Math.min(20, Number(process.env.DEMO_CONTRACT_WEEKLY_HOURS) || 6))
         await connection.query(
           `INSERT INTO contratos (estudiante_id, horas_semanales, modalidad, fecha_inicio, fecha_fin, activo)
-           VALUES (?, ?, 'Hibrida', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), TRUE)`,
+           VALUES (?, ?, 'Presencial', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 YEAR), TRUE)`,
           [student.id, weeklyHours],
         )
       }

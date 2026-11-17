@@ -20,7 +20,7 @@ CREATE TABLE contratos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     estudiante_id INT NOT NULL,
     horas_semanales INT NOT NULL DEFAULT 6,
-    modalidad ENUM('Presencial', 'En Linea', 'Hibrida') NOT NULL,
+    modalidad ENUM('Presencial', 'En Linea') NOT NULL,
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NOT NULL,
     activo BOOLEAN DEFAULT TRUE,

@@ -61,8 +61,8 @@ export function StudentProvider({ children }) {
     }
   }, [token, logout])
 
-  const createReservations = useCallback(async (slots, modality) => {
-    const payload = await api.createReservations(token, slots, modality)
+  const createReservations = useCallback(async (slots) => {
+    const payload = await api.createReservations(token, slots)
     updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
     return payload.reservations || []
   }, [token])

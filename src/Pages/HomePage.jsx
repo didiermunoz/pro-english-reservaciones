@@ -16,7 +16,7 @@ const WEEKDAY_END_HOUR = 20
 const SATURDAY_START_HOUR = 8
 const SATURDAY_END_HOUR = 15
 
-const scheduleHours = Array.from({ length: 13 }, (_, index) => index + 7)
+const scheduleHours = Array.from({ length: 14 }, (_, index) => index + 7)
 const createSlots = (date, startHour, endHour) => Array.from({ length: endHour - startHour }, (_, index) => {
   const hour = startHour + index
   const day = weekDayNames[date.getDay()]
@@ -31,11 +31,7 @@ export default function HomePage({ onNavigate }) {
   const [availabilityError, setAvailabilityError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
-  const [attendanceMode, setAttendanceMode] = useState('in-person')
-  const now = new Date()
-  const simulatedHour = now.getHours()
   const studentHours = Number(currentStudent?.contract?.weeklyHours || 0)
-  const scheduleClosed = simulatedHour >= 20
 
   // Fechas derivadas
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => {
@@ -104,7 +100,7 @@ export default function HomePage({ onNavigate }) {
   const availabilityBySlot = useMemo(() => new Map(availability.map((item) => [`${item.dateKey}-${item.hour}`, item])), [availability])
 
   const toggleSlot = (slot) => {
-    if (scheduleClosed || !slot || availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)?.available !== true || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || confirmed || studentHours === 0) return
+    if (!slot || availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)?.available !== true || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || confirmed || studentHours === 0) return
     setSelectedSlots((currentSlots) => {
       if (currentSlots.some((currentSlot) => currentSlot.id === slot.id)) {
         return currentSlots.filter((currentSlot) => currentSlot.id !== slot.id)
@@ -114,7 +110,7 @@ export default function HomePage({ onNavigate }) {
   }
 
   const getSlotStatus = (slot) => {
-    if (scheduleClosed || !slot || availabilityError || !availability.length) return 'unavailable'
+    if (!slot || availabilityError || !availability.length) return 'unavailable'
     const slotAvailability = availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)
     if (!slotAvailability) return 'unavailable'
     if (scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || slotAvailability.reservedByStudent) return 'booked'
@@ -127,7 +123,7 @@ export default function HomePage({ onNavigate }) {
     setLoading(true)
     setNotice('')
     try {
-      await createReservations(selectedSlots, attendanceMode)
+      await createReservations(selectedSlots)
       setSelectedSlots([])
       setConfirmed(true)
       setNotice('Reservaciones guardadas correctamente.')
@@ -141,11 +137,11 @@ export default function HomePage({ onNavigate }) {
   return <div className="student-portal">
     <StudentNavbar onNavigate={onNavigate} />
     <main className="student-main">
-      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} attendanceMode={attendanceMode} onAttendanceModeChange={setAttendanceMode} />
+      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} />
       {availabilityError && <p className="schedule-closed" role="alert">{availabilityError}</p>}
       {notice && <p className="profile-alert" role="status">{notice}</p>}
       {!currentStudent.contract && <p className="schedule-closed" role="status">No tienes un contrato activo asociado a tu cuenta.</p>}
-      <ScheduleSection closed={scheduleClosed} confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
+      <ScheduleSection confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
       <WeekProgress completedClasses={completedClasses} weekDates={weekDates} />
     </main> 
     <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} loading={loading} />

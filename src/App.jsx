@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback, useState } from 'react'
 import { Link, Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './modules/modules/LoginPage.jsx'
 import { Profile } from './modules/modules/profile_page/Profile.jsx'
@@ -31,6 +31,17 @@ function ProtectedRoute({ children, role, allowPasswordChange = false }) {
   return children
 }
 
+function ReceptionTvRoute() {
+  const { user, loadingSession } = useStudent()
+  const [authorized, setAuthorized] = useState(false)
+  const authorize = useCallback(() => setAuthorized(true), [])
+
+  if (authorized || user?.role === 'reception') return <ReceptionTvView onTokenIssued={authorize} />
+  if (loadingSession && !user) return <main className="route-loading" aria-live="polite">Cargando sesión...</main>
+  if (!user) return <Navigate to="/login" replace />
+  return <main className="route-denied"><p role="alert">No tienes permisos de Recepción para acceder a este módulo.</p><Link to={user.role === 'reception' ? '/recepcion' : '/home'}>Volver a mi panel</Link></main>
+}
+
 export default function App() {
   return <StudentProvider>
     <Routes>
@@ -40,7 +51,7 @@ export default function App() {
       <Route path="/perfil" element={<ProtectedRoute role="student"><Profile /></ProtectedRoute>} />
       <Route path="/recepcion" element={<ProtectedRoute role="reception"><Reception /></ProtectedRoute>} />
       <Route path="/recepcion/asignacion-diaria" element={<ProtectedRoute role="reception"><DailyRoomAssignments /></ProtectedRoute>} />
-      <Route path="/recepcion/pantalla-tv" element={<ProtectedRoute role="reception"><ReceptionTvView /></ProtectedRoute>} />
+      <Route path="/recepcion/pantalla-tv" element={<ReceptionTvRoute />} />
       <Route path="/home" element={<ProtectedRoute role="student"><HomePage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

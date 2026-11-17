@@ -20,7 +20,7 @@ export const api = {
   changePassword: (token, password) => request('/auth/change-password', { method: 'POST', body: JSON.stringify({ password }) }, token),
   updateProfile: (token, updates) => request('/student/profile', { method: 'PATCH', body: JSON.stringify(updates) }, token),
   availability: (token, dates) => request(`/student/availability?dates=${encodeURIComponent(dates.join(','))}`, {}, token),
-  createReservations: (token, slots, modalidad) => request('/reservations', { method: 'POST', body: JSON.stringify({ slots, modalidad }) }, token),
+  createReservations: (token, slots) => request('/reservations', { method: 'POST', body: JSON.stringify({ slots }) }, token),
   cancelReservation: (token, id) => request(`/reservations/${id}`, { method: 'DELETE' }, token),
   cancelReservations: (token, ids) => request('/reservations', { method: 'DELETE', body: JSON.stringify({ ids }) }, token),
   updateReservation: (token, id, updates) => request(`/reservations/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }, token),
@@ -30,6 +30,7 @@ export const api = {
   receptionLessons: (token) => request('/reception/lessons', {}, token),
   receptionDailyRoomAssignments: (token, date) => request(`/reception/daily-room-assignments?date=${encodeURIComponent(date)}`, {}, token),
   saveReceptionDailyRoomAssignments: (token, date, rooms) => request(`/reception/daily-room-assignments/${encodeURIComponent(date)}`, { method: 'PUT', body: JSON.stringify({ rooms }) }, token),
+  receptionTvToken: (token) => request('/reception/tv-token', { method: 'POST' }, token),
   receptionTvSummary: (token, date) => request(`/reception/daily-room-assignments/tv?date=${encodeURIComponent(date)}`, {}, token),
   createLesson: (token, lesson) => request('/reception/lessons', { method: 'POST', body: JSON.stringify(lesson) }, token),
   updateLesson: (token, id, lesson) => request(`/reception/lessons/${id}`, { method: 'PATCH', body: JSON.stringify(lesson) }, token),
@@ -40,5 +41,5 @@ export const api = {
   createStudent: (token, student) => request('/reception/students', { method: 'POST', body: JSON.stringify(student) }, token),
   updateStudent: (token, id, student) => request(`/reception/students/${id}`, { method: 'PATCH', body: JSON.stringify(student) }, token),
   deleteStudent: (token, id) => request(`/reception/students/${id}`, { method: 'DELETE' }, token),
-  receptionReservations: (token, date) => request(`/reception/reservations?date=${encodeURIComponent(date)}`, {}, token),
+  receptionReservations: (token, date, status) => request(`/reception/reservations?date=${encodeURIComponent(date)}${status ? `&status=${encodeURIComponent(status)}` : ''}`, {}, token),
 }

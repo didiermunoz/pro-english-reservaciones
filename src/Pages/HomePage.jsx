@@ -12,7 +12,7 @@ import './HomePage.css'
 
 const SATURDAY = 6
 const WEEKDAY_START_HOUR = 7
-const WEEKDAY_END_HOUR = 20
+const WEEKDAY_END_HOUR = 21
 const SATURDAY_START_HOUR = 8
 const SATURDAY_END_HOUR = 15
 

@@ -284,6 +284,10 @@
   cursor: pointer;
 }
 
+.form .checkboxLabel {
+  display: inline-flex;
+}
+
 .checkboxLabel input {
   width: 1rem;
   min-height: 1rem;

@@ -5,15 +5,18 @@ import logopro from '../../assets/logo_og.png'
 import { api } from '../../Services/api'
 import { useStudent } from '../../Services/useStudent'
 
+const getRememberedUser = (role) => localStorage.getItem(`pro-english-remembered-${role}`) || ''
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const { acceptSession } = useStudent()
-  const [matricula, setMatricula] = useState('')
+  const [matricula, setMatricula] = useState(() => getRememberedUser('student'))
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [mode, setMode] = useState('student')
+  const [rememberMe, setRememberMe] = useState(() => Boolean(getRememberedUser('student')))
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -25,6 +28,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const payload = await api.login({ matricula: matricula.trim(), password, role: mode })
+      const rememberedUserKey = `pro-english-remembered-${mode}`
+      if (rememberMe) localStorage.setItem(rememberedUserKey, matricula.trim())
+      else localStorage.removeItem(rememberedUserKey)
       acceptSession(payload)
       if (payload.user.mustChangePassword) {
         setError('Debes cambiar tu contraseña temporal antes de continuar.')
@@ -70,7 +76,7 @@ export default function LoginPage() {
             <p>{isReceptionMode ? 'Ingresa tus credenciales para gestionar la academia.' : 'Ingresa tus datos para continuar.'}</p>
           </header>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <form className={styles.form} autoComplete={rememberMe ? 'on' : 'off'} onSubmit={handleSubmit}>
             {error && <p className={styles.loginAlert} role="alert">{error}</p>}
             <label htmlFor="matricula">
               {isReceptionMode ? 'Usuario de recepción' : 'Matrícula (ID)'}
@@ -81,7 +87,7 @@ export default function LoginPage() {
                 value={matricula}
                 onChange={(event) => setMatricula(event.target.value)}
                 placeholder={isReceptionMode ? 'Ingresa tu usuario' : 'Ingresa tu matrícula'}
-                autoComplete="username"
+                autoComplete={rememberMe ? 'username' : 'off'}
                 required
               />
             </label>
@@ -96,7 +102,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Ingresa tu contraseña"
-                  autoComplete="current-password"
+                  autoComplete={rememberMe ? 'current-password' : 'off'}
                   required
                 />
                 <button
@@ -111,6 +117,17 @@ export default function LoginPage() {
               </span>
             </label>
 
+            <div className={styles.rememberRow}>
+              <label className={styles.checkboxLabel} htmlFor="remember-me">
+                <input id="remember-me" type="checkbox" checked={rememberMe} onChange={(event) => {
+                  const checked = event.target.checked
+                  setRememberMe(checked)
+                  if (!checked) localStorage.removeItem(`pro-english-remembered-${mode}`)
+                }} />
+                Recordarme y permitir que el navegador guarde la contraseña
+              </label>
+            </div>
+
             <button className={styles.submitButton} type="submit" disabled={loading}>
               {loading ? 'Validando...' : 'Iniciar sesión'}
             </button>
@@ -119,8 +136,10 @@ export default function LoginPage() {
               type="button"
               className={styles.modeToggle}
               onClick={() => {
-                setMode((currentMode) => currentMode === 'reception' ? 'student' : 'reception')
-                setMatricula('')
+                const nextMode = mode === 'reception' ? 'student' : 'reception'
+                setMode(nextMode)
+                setMatricula(getRememberedUser(nextMode))
+                setRememberMe(Boolean(getRememberedUser(nextMode)))
                 setPassword('')
                 setError('')
               }}

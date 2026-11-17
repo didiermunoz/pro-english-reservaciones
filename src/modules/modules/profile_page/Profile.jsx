@@ -144,14 +144,14 @@ export const Profile = () => {
             {upcomingClasses.map((item) => <div key={item.id} className="class-item">
               <div className="class-info"><h4>{item.title}</h4><p>Fecha: {formatDate(item.dateKey)}</p><p>Horario: {item.time}</p></div>
               <button className="btn-cancel" type="button" disabled={loading || !canCancelReservation(item)} onClick={() => setPendingCancellation(item)}>Cancelar bloque ({item.ids.length} {item.ids.length === 1 ? 'hora' : 'horas'})</button>
+              {pendingCancellation?.id === item.id && <div className="profile-confirm" role="alertdialog" aria-label="Confirmar cancelación">
+                <span>¿Cancelar {pendingCancellation.ids.length} {pendingCancellation.ids.length === 1 ? 'hora' : 'horas'} del {formatDate(pendingCancellation.dateKey)}?</span>
+                <button className="profile-confirm-danger" type="button" disabled={loading} onClick={handleCancel}>{loading ? 'Procesando...' : 'Confirmar cancelación'}</button>
+                <button type="button" onClick={() => setPendingCancellation(null)}>Conservar</button>
+              </div>}
             </div>)}
           </div>}
 
-          {pendingCancellation && <div className="profile-confirm" role="alertdialog" aria-label="Confirmar cancelación">
-            <span>¿Cancelar {pendingCancellation.ids.length} {pendingCancellation.ids.length === 1 ? 'hora' : 'horas'} del {formatDate(pendingCancellation.dateKey)}?</span>
-            <button type="button" disabled={loading} onClick={handleCancel}>{loading ? 'Procesando...' : 'Confirmar cancelación'}</button>
-            <button type="button" onClick={() => setPendingCancellation(null)}>Conservar</button>
-          </div>}
         </section>
 
         <aside className="sidebar-content"><div className="side-card"><h3>Historial de clases</h3>

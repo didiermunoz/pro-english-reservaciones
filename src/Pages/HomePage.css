@@ -1853,18 +1853,17 @@ a {
 
   .schedule-legend {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 6px 14px;
     margin: 12px 0 0;
-    overflow: hidden;
     color: #64748b;
     font-size: .8125rem;
-    white-space: nowrap;
   }
 
   .schedule-legend span {
     display: inline-flex;
     min-width: 0;
+    white-space: nowrap;
     align-items: center;
     gap: 5px;
     font-size: .8125rem;

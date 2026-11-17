@@ -9,6 +9,7 @@ import { getClassHours } from './schedule.js'
 
 if (!process.env.TZ) process.env.TZ = 'America/Mexico_City'
 const app = express()
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY))
 const port = Number(process.env.PORT || 3000)
 const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'local-development-only-change-before-deploy')
 if (!jwtSecret) throw new Error('Configura JWT_SECRET antes de iniciar en producción.')
@@ -30,6 +31,7 @@ const DEFAULT_WEEKLY_HOURS = 6
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { message: 'Demasiados intentos de inicio de sesión. Inténtalo de nuevo en 15 minutos.', code: 'RATE_LIMIT_EXCEEDED' },
@@ -742,6 +744,17 @@ app.post('/api/reception/students', authenticate, requireRole('reception'), asyn
   }
   const student = await getStudent(studentId)
   res.status(201).json({ student: serializeStudent(student), temporaryPassword })
+}))
+
+app.post('/api/reception/students/:id/reset-password', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const temporaryPassword = randomBytes(9).toString('base64url')
+  const password = await bcrypt.hash(temporaryPassword, bcryptRounds)
+  const [result] = await pool.query(
+    'UPDATE estudiantes SET password = ?, debe_cambiar_password = TRUE WHERE id = ?',
+    [password, req.params.id],
+  )
+  if (!result.affectedRows) return sendError(res, 404, 'Estudiante no encontrado.', 'STUDENT_NOT_FOUND')
+  res.json({ temporaryPassword })
 }))
 
 app.patch('/api/reception/students/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {

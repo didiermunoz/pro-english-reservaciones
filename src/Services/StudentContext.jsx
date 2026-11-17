@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
-import { clearAuthSession, getStoredAuthSession, saveAuthSession } from './auth'
+import { clearAuthSession, getStoredAuthSession, saveAuthSession, shouldRememberAuthSession } from './auth'
 import { StudentContext } from './StudentContextBase'
 
 const isInvalidSessionError = (error) => (
@@ -24,12 +24,12 @@ export function StudentProvider({ children }) {
   const reservationsRef = useRef(reservations)
   const lastSyncAt = useRef(0)
 
-  const acceptSession = useCallback((payload) => {
+  const acceptSession = useCallback((payload, remember) => {
     const nextSession = { token: payload.token, user: payload.user }
     updateIfChanged(sessionRef, setSession, nextSession)
     updateIfChanged(userRef, setUser, payload.user)
     updateIfChanged(reservationsRef, setReservations, payload.reservations || [])
-    saveAuthSession(nextSession)
+    saveAuthSession(nextSession, remember)
   }, [])
 
   const logout = useCallback(() => {
@@ -54,7 +54,7 @@ export function StudentProvider({ children }) {
       const nextSession = { ...(sessionRef.current || { token }), user: payload.user }
       updateIfChanged(sessionRef, setSession, nextSession)
       if (JSON.stringify(getStoredAuthSession()) !== JSON.stringify(nextSession)) {
-        saveAuthSession(nextSession)
+        saveAuthSession(nextSession, shouldRememberAuthSession())
       }
     } catch (error) {
       if (isInvalidSessionError(error)) logout()
@@ -79,7 +79,7 @@ export function StudentProvider({ children }) {
     updateIfChanged(userRef, setUser, payload.user)
     updateIfChanged(sessionRef, setSession, nextSession)
     if (JSON.stringify(getStoredAuthSession()) !== JSON.stringify(nextSession)) {
-      saveAuthSession(nextSession)
+      saveAuthSession(nextSession, shouldRememberAuthSession())
     }
     return payload.user
   }, [session])
@@ -104,7 +104,6 @@ export function StudentProvider({ children }) {
   useEffect(() => {
     let active = true
     if (!token) {
-      setLoadingSession(false)
       return undefined
     }
     let initialSyncPending = true
@@ -123,7 +122,7 @@ export function StudentProvider({ children }) {
         const nextSession = { ...(storedSession || sessionRef.current || { token }), user: payload.user }
         updateIfChanged(sessionRef, setSession, nextSession)
         if (JSON.stringify(storedSession) !== JSON.stringify(nextSession)) {
-          saveAuthSession(nextSession)
+          saveAuthSession(nextSession, shouldRememberAuthSession())
         }
       } catch (error) {
         if (active && isInvalidSessionError(error)) logout()

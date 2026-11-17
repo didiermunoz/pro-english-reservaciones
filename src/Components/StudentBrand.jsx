@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 
-/** Renders the academy brand; `footer` is retained for existing callers. */
-export default function StudentBrand({ footer = false }) {
+/** Renders the academy brand; `_footer` is retained for existing callers. */
+export default function StudentBrand({ footer: _footer = false }) {
   return (
     <Link className="student-brand" to="/home" aria-label="Pro English Academy Sur, inicio">
       <img

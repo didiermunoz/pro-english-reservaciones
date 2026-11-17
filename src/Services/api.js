@@ -41,5 +41,6 @@ export const api = {
   createStudent: (token, student) => request('/reception/students', { method: 'POST', body: JSON.stringify(student) }, token),
   updateStudent: (token, id, student) => request(`/reception/students/${id}`, { method: 'PATCH', body: JSON.stringify(student) }, token),
   deleteStudent: (token, id) => request(`/reception/students/${id}`, { method: 'DELETE' }, token),
+  resetStudentPassword: (token, id) => request(`/reception/students/${id}/reset-password`, { method: 'POST' }, token),
   receptionReservations: (token, date, status) => request(`/reception/reservations?date=${encodeURIComponent(date)}${status ? `&status=${encodeURIComponent(status)}` : ''}`, {}, token),
 }

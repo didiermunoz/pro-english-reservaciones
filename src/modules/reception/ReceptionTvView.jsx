@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../Services/api'
 import { useStudent } from '../../Services/useStudent'
+import { getReceptionTvTokenExpiration, getStoredReceptionTvToken, RECEPTION_TV_TOKEN_STORAGE_KEY } from './receptionTvToken'
 import './daily-room-assignments.css'
 
 const getTodayKey = () => {
@@ -16,18 +17,26 @@ const displayDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('e
 export default function ReceptionTvView({ onTokenIssued }) {
   const { token } = useStudent()
   const [date, setDate] = useState(getTodayKey)
-  const [tvToken, setTvToken] = useState('')
+  const [tvToken, setTvToken] = useState(getStoredReceptionTvToken)
   const [selectedHour, setSelectedHour] = useState('')
   const [summary, setSummary] = useState({ rooms: [], currentTime: '' })
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState('')
 
   useEffect(() => {
+    const storedTvToken = getStoredReceptionTvToken()
+    if (storedTvToken) return undefined
     if (!token) return undefined
     let active = true
     api.receptionTvToken(token)
       .then((result) => {
         if (!active) return
+        const expiresAt = getReceptionTvTokenExpiration(result.token)
+        if (!expiresAt) {
+          setError('No fue posible verificar la vigencia del token de la pantalla.')
+          return
+        }
+        localStorage.setItem(RECEPTION_TV_TOKEN_STORAGE_KEY, JSON.stringify({ token: result.token, expiresAt }))
         setTvToken(result.token)
         onTokenIssued()
       })
@@ -45,7 +54,16 @@ export default function ReceptionTvView({ onTokenIssued }) {
         setUpdatedAt(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }))
         setError('')
       })
-      .catch((refreshError) => { if (active) setError(refreshError.message) })
+      .catch((refreshError) => {
+        if (!active) return
+        if (refreshError.status === 401) {
+          localStorage.removeItem(RECEPTION_TV_TOKEN_STORAGE_KEY)
+          setTvToken('')
+          setError('El token de la pantalla dejó de ser válido. Recepción debe volver a abrir la pantalla.')
+          return
+        }
+        setError(refreshError.message)
+      })
     refresh()
     const interval = window.setInterval(refresh, 30000)
     return () => {

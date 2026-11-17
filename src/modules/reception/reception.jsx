@@ -31,6 +31,7 @@ export default function Reception() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [pendingPasswordReset, setPendingPasswordReset] = useState(null)
   const [notice, setNotice] = useState('')
   const [temporaryPassword, setTemporaryPassword] = useState('')
   const [loading, setLoading] = useState(true)
@@ -179,6 +180,23 @@ export default function Reception() {
     }
   }
 
+  const resetStudentPassword = async () => {
+    if (!pendingPasswordReset) return
+    setSaving(true)
+    setNotice('')
+    setTemporaryPassword('')
+    try {
+      const result = await api.resetStudentPassword(token, pendingPasswordReset.id)
+      setPendingPasswordReset(null)
+      setTemporaryPassword(result.temporaryPassword)
+      setNotice('Contraseña restablecida. Entrega esta contraseña temporal al estudiante:')
+    } catch (error) {
+      setNotice(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const updateReservationStatus = async (reservation, status) => {
     setSaving(true)
     setNotice('')
@@ -298,7 +316,7 @@ export default function Reception() {
           <label className="reception-search">Buscar<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o matrícula" /></label>
           {tab === 'reservations' && <>
             <label className="reception-date">Fecha<input type="date" value={date} onChange={(event) => { setDate(event.target.value); setReservationHour('') }} /></label>
-            <label>Estado<select value={reservationStatus} onChange={(event) => { setReservationStatus(event.target.value); setReservationHour('') }}><option value="">Sin cancelar</option><option value="Confirmada">Confirmada</option><option value="Cancelada">Cancelada</option><option value="Completada">Completada</option></select></label>
+            <label>Estado<select value={reservationStatus} onChange={(event) => { setReservationStatus(event.target.value); setReservationHour('') }}><option value="">Sin cancelar</option><option value="Confirmada">Pendiente</option><option value="Cancelada">Cancelada</option><option value="Completada">Asistió</option></select></label>
           </>}
           <button type="button" className="reception-refresh" disabled={loading} onClick={() => { setLoading(true); setNotice(''); reload() }}>{loading ? 'Consultando...' : 'Actualizar datos'}</button>
         </div>
@@ -317,7 +335,7 @@ export default function Reception() {
                   return <>{new Date(`${student.contract.endDate}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} <span className="reception-expiry-badge" data-status={expiry.status}>{statusText}</span></>
                 })() : '—'}</td>
                 <td>{student.activeReservations}</td>
-                <td className="reception-row-actions"><button type="button" onClick={() => startEdit(student)}>Editar</button><button type="button" className="danger" onClick={() => setPendingDelete(student)}>Eliminar</button></td>
+                <td className="reception-row-actions"><button type="button" onClick={() => startEdit(student)}>Editar</button><button type="button" onClick={() => { setNotice(''); setTemporaryPassword(''); setPendingPasswordReset(student) }}>Restablecer contraseña</button><button type="button" className="danger" onClick={() => setPendingDelete(student)}>Eliminar</button></td>
               </tr>)}
             </tbody></table></div>}
           </section>
@@ -386,6 +404,7 @@ export default function Reception() {
       </section>
 
       {pendingDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-heading"><h2 id="delete-heading">Eliminar estudiante</h2><p>Se eliminará a {pendingDelete.name} y sus reservas asociadas.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteStudent}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingDelete(null)}>Cancelar</button></div></section></div>}
+      {pendingPasswordReset && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="reset-password-heading"><h2 id="reset-password-heading">Restablecer contraseña</h2><p>Se generará una contraseña temporal nueva para {pendingPasswordReset.name}. La contraseña actual dejará de funcionar.</p><div><button type="button" disabled={saving} onClick={resetStudentPassword}>{saving ? 'Restableciendo...' : 'Restablecer contraseña'}</button><button type="button" disabled={saving} onClick={() => setPendingPasswordReset(null)}>Cancelar</button></div></section></div>}
       {pendingRoomDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-room-heading"><h2 id="delete-room-heading">Eliminar salón</h2><p>¿Eliminar {pendingRoomDelete.name}? Los salones con reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteRoom}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingRoomDelete(null)}>Cancelar</button></div></section></div>}
       {pendingLessonDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-lesson-heading"><h2 id="delete-lesson-heading">Eliminar lección</h2><p>¿Eliminar “{pendingLessonDelete.title}”? Las lecciones asociadas a reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteLesson}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingLessonDelete(null)}>Cancelar</button></div></section></div>}
     </main>

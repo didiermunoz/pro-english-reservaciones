@@ -9,6 +9,7 @@ import { useStudent } from './Services/useStudent.js'
 import ChangePasswordPage from './modules/modules/ChangePasswordPage.jsx'
 import DailyRoomAssignments from './modules/reception/DailyRoomAssignments.jsx'
 import ReceptionTvView from './modules/reception/ReceptionTvView.jsx'
+import { getStoredReceptionTvToken } from './modules/reception/receptionTvToken.js'
 
 function NotFoundPage() {
   return (
@@ -33,7 +34,7 @@ function ProtectedRoute({ children, role, allowPasswordChange = false }) {
 
 function ReceptionTvRoute() {
   const { user, loadingSession } = useStudent()
-  const [authorized, setAuthorized] = useState(false)
+  const [authorized, setAuthorized] = useState(() => Boolean(getStoredReceptionTvToken()))
   const authorize = useCallback(() => setAuthorized(true), [])
 
   if (authorized || user?.role === 'reception') return <ReceptionTvView onTokenIssued={authorize} />

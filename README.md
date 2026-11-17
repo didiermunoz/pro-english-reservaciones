@@ -27,6 +27,7 @@ npm run dev
 ```
 
 La API usa `http://localhost:3000` por defecto; la app estará en la URL que Vite muestre (normalmente `http://localhost:5173`). Si el puerto 3000 está ocupado, establece `PORT` para la API y actualiza `VITE_API_URL` en `.env`.
+En producción, si la API está detrás de un proxy, configura `TRUST_PROXY=1` en `.env`.
 
 Comprueba `GET /api/health` para verificar que MySQL está conectado. `npm run build` valida el frontend y `npm run lint` ejecuta Oxlint.
 

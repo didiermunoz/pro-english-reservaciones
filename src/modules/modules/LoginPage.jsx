@@ -31,7 +31,7 @@ export default function LoginPage() {
       const rememberedUserKey = `pro-english-remembered-${mode}`
       if (rememberMe) localStorage.setItem(rememberedUserKey, matricula.trim())
       else localStorage.removeItem(rememberedUserKey)
-      acceptSession(payload)
+      acceptSession(payload, rememberMe)
       if (payload.user.mustChangePassword) {
         setError('Debes cambiar tu contraseña temporal antes de continuar.')
         navigate('/actualizar-password', { replace: true })
@@ -76,7 +76,7 @@ export default function LoginPage() {
             <p>{isReceptionMode ? 'Ingresa tus credenciales para gestionar la academia.' : 'Ingresa tus datos para continuar.'}</p>
           </header>
 
-          <form className={styles.form} autoComplete={rememberMe ? 'on' : 'off'} onSubmit={handleSubmit}>
+          <form className={styles.form} onSubmit={handleSubmit}>
             {error && <p className={styles.loginAlert} role="alert">{error}</p>}
             <label htmlFor="matricula">
               {isReceptionMode ? 'Usuario de recepción' : 'Matrícula (ID)'}
@@ -87,7 +87,7 @@ export default function LoginPage() {
                 value={matricula}
                 onChange={(event) => setMatricula(event.target.value)}
                 placeholder={isReceptionMode ? 'Ingresa tu usuario' : 'Ingresa tu matrícula'}
-                autoComplete={rememberMe ? 'username' : 'off'}
+                autoComplete="username"
                 required
               />
             </label>
@@ -102,7 +102,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Ingresa tu contraseña"
-                  autoComplete={rememberMe ? 'current-password' : 'off'}
+                  autoComplete="current-password"
                   required
                 />
                 <button
@@ -124,7 +124,7 @@ export default function LoginPage() {
                   setRememberMe(checked)
                   if (!checked) localStorage.removeItem(`pro-english-remembered-${mode}`)
                 }} />
-                Recordarme y permitir que el navegador guarde la contraseña
+                Recordarme
               </label>
             </div>
 

@@ -2,6 +2,8 @@ import CurrentDateTime from './CurrentDateTime'
 
 export default function ContractHero({ student, selectedCount, studentHours }) {
   const remainingHours = Math.max(0, studentHours - selectedCount)
+  const progress = studentHours > 0 ? Math.min(selectedCount / studentHours, 1) : 0
+  const circumference = 2 * Math.PI * 34
   const firstName = student?.name?.trim().split(/\s+/)[0] || ''
 
   return (
@@ -11,7 +13,23 @@ export default function ContractHero({ student, selectedCount, studentHours }) {
       </div>
       <CurrentDateTime />
       <p className="contract-modality">Modalidad de tu contrato: {student?.contract?.modality || 'No disponible'}</p>
-      <p className="hours-remaining">Te quedan {remainingHours} h para reservar esta semana</p>
+      <div className="hours-summary">
+        <div className="hours-meter" role="img" aria-label={`${selectedCount} de ${studentHours} horas reservadas o seleccionadas esta semana`}>
+          <svg viewBox="0 0 80 80" aria-hidden="true">
+            <circle className="hours-ring-track" cx="40" cy="40" r="34" />
+            <circle
+              className="hours-ring-progress"
+              cx="40"
+              cy="40"
+              r="34"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - progress)}
+            />
+          </svg>
+          <span className="hours-ring-label"><strong>{selectedCount}</strong><small>de {studentHours} h</small></span>
+        </div>
+        <p className="hours-remaining">Te quedan {remainingHours} h para reservar esta semana</p>
+      </div>
     </section>
   )
 }

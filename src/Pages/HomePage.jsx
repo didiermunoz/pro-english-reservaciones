@@ -116,6 +116,7 @@ export default function HomePage({ onNavigate }) {
     if (scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || slotAvailability.reservedByStudent) return 'booked'
     if (!slotAvailability.available) return 'full'
     if (selectedSlots.some((selectedSlot) => selectedSlot.id === slot.id)) return 'selected'
+    if (totalScheduledHours >= studentHours) return 'limit'
     return 'available'
   }
 

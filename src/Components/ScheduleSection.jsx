@@ -2,6 +2,7 @@ const STATUS_LABELS = {
   full: 'Lleno',
   booked: 'Reservado',
   selected: 'Elegido',
+  limit: 'Límite alcanzado',
   unavailable: 'No disponible',
   available: 'Disponible',
 }
@@ -10,6 +11,7 @@ const STATUS_SYMBOLS = {
   full: '–',
   booked: '✓',
   selected: '✓',
+  limit: '×',
   unavailable: '—',
   available: '+',
 }
@@ -45,7 +47,7 @@ function DayColumn({ day, dateLabel, daySlots, scheduleHours, getSlotStatus, onS
     <div className="slot-list">{scheduleHours.map((hour) => {
       const slot = daySlots.find((daySlot) => daySlot.hour === hour)
       const status = getSlotStatus(slot)
-      return <button aria-label={`${day}, ${slot ? slot.time : 'No disponible'}`} aria-pressed={status === 'selected' || status === 'booked'} className={`time-slot ${status}`} disabled={status === 'full' || status === 'booked' || status === 'unavailable'} key={`${day}-${hour}`} onClick={() => onSlotToggle(slot)} type="button"><em className="slot-time">{slot ? slot.time : ''}</em><span aria-hidden="true">{STATUS_SYMBOLS[status]}</span><small>{STATUS_LABELS[status]}</small></button>
+      return <button aria-label={`${day}, ${slot ? slot.time : 'No disponible'}, ${STATUS_LABELS[status]}`} aria-pressed={status === 'selected' || status === 'booked'} className={`time-slot ${status}`} disabled={status === 'full' || status === 'booked' || status === 'limit' || status === 'unavailable'} key={`${day}-${hour}`} onClick={() => onSlotToggle(slot)} type="button"><em className="slot-time">{slot ? slot.time : ''}</em><span aria-hidden="true">{STATUS_SYMBOLS[status]}</span><small>{STATUS_LABELS[status]}</small></button>
     })}</div>
   </div>
 }
@@ -60,6 +62,6 @@ export default function ScheduleSection({ selectableDates, scheduleHours, slotsB
     <div className="schedule-header"><div><span className="eyebrow">PRÓXIMA FECHA DISPONIBLE</span><h2 id="schedule-title">{headingDay}</h2><p>{date.label}</p></div><div className="schedule-rule">{`Reservando para ${date.day} ${date.label}`}</div></div>
     <ScheduleGuide />
     <div className="schedule-scroll"><div className={`schedule-grid days-${selectableDates.length}`}><TimeRail scheduleHours={scheduleHours} formatHour={formatHour} />{selectableDates.map((date) => <DayColumn dateLabel={date.label} day={date.day} daySlots={slotsByDate[date.key]} getSlotStatus={getSlotStatus} key={date.key} onSlotToggle={onSlotToggle} scheduleHours={scheduleHours} />)}</div></div>
-    <div className="schedule-legend" aria-label="Leyenda de disponibilidad"><span><i className="legend-dot available-dot" />Disponible</span><span><i className="legend-dot selected-dot" />Seleccionado / reservado</span><span><i className="legend-dot full-dot" />Sin cupo</span></div>
+    <div className="schedule-legend" aria-label="Leyenda de disponibilidad"><span><i className="legend-dot available-dot" />Disponible</span><span><i className="legend-dot selected-dot" />Seleccionado / reservado</span><span><i className="legend-dot full-dot" />Sin cupo</span><span><i className="legend-dot limit-dot" />Límite semanal alcanzado</span></div>
   </section>
 }

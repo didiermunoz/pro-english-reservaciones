@@ -217,9 +217,14 @@
 }
 
 .tvs-lesson {
+  align-self: flex-start;
   margin: 0;
-  color: var(--tvs-muted);
-  font-size: var(--tvs-label, 1rem);
+  padding: .15em .6em;
+  border-radius: 999px;
+  color: #0b1622;
+  background: #fde68a;
+  font-size: calc(var(--tvs-teacher, 1.8rem) * var(--tvs-scale, 1) * .85);
+  font-weight: 800;
 }
 
 .tvs-students {
@@ -340,8 +345,7 @@
   border-top-width: 6px;
 }
 
-.density-sm .tvs-room-label,
-.density-sm .tvs-lesson {
+.density-sm .tvs-room-label {
   display: none;
 }
 

@@ -20,7 +20,6 @@ const formatRosetta = (rosetta) => {
   if (rosetta?.plan === 'paquete') return `${rosetta.usedHours}/${rosetta.totalHours} h`
   return 'No'
 }
-const emptyLessonForm = { order: '', title: '', type: 'Leccion' }
 
 export default function Reception() {
   const navigate = useNavigate()
@@ -29,7 +28,6 @@ export default function Reception() {
   const [students, setStudents] = useState([])
   const [reservations, setReservations] = useState([])
   const [rooms, setRooms] = useState([])
-  const [lessons, setLessons] = useState([])
   const [date, setDate] = useState(todayKey)
   const [query, setQuery] = useState('')
   const [reservationHour, setReservationHour] = useState('')
@@ -45,9 +43,6 @@ export default function Reception() {
   const [roomForm, setRoomForm] = useState(emptyRoomForm)
   const [editingRoomId, setEditingRoomId] = useState(null)
   const [pendingRoomDelete, setPendingRoomDelete] = useState(null)
-  const [lessonForm, setLessonForm] = useState(emptyLessonForm)
-  const [editingLessonId, setEditingLessonId] = useState(null)
-  const [pendingLessonDelete, setPendingLessonDelete] = useState(null)
 
   const loadStudents = useCallback(async () => {
     const result = await api.receptionStudents(token)
@@ -64,41 +59,35 @@ export default function Reception() {
     setRooms(result.rooms || [])
   }, [token])
 
-  const loadLessons = useCallback(async () => {
-    const result = await api.receptionLessons(token)
-    setLessons(result.lessons || [])
-  }, [token])
-
   const reload = useCallback(async () => {
     try {
-      await Promise.all([loadStudents(), loadReservations(), loadRooms(), loadLessons()])
+      await Promise.all([loadStudents(), loadReservations(), loadRooms()])
     } catch (error) {
       setNotice(error.message)
     } finally {
       setLoading(false)
     }
-  }, [loadStudents, loadReservations, loadRooms, loadLessons])
+  }, [loadStudents, loadReservations, loadRooms])
 
   useEffect(() => {
     let active = true
-    Promise.all([api.receptionStudents(token), api.receptionReservations(token, date, reservationStatus), api.receptionRooms(token), api.receptionLessons(token)])
-      .then(([studentResult, reservationResult, roomResult, lessonResult]) => {
+    Promise.all([api.receptionStudents(token), api.receptionReservations(token, date, reservationStatus), api.receptionRooms(token)])
+      .then(([studentResult, reservationResult, roomResult]) => {
         if (!active) return
         setStudents(studentResult.students || [])
         setReservations(reservationResult.reservations || [])
         setRooms(roomResult.rooms || [])
-        setLessons(lessonResult.lessons || [])
       })
       .catch((error) => { if (active) setNotice(error.message) })
       .finally(() => { if (active) setLoading(false) })
     const interval = window.setInterval(() => {
-      Promise.all([loadStudents(), loadReservations(), loadRooms(), loadLessons()]).catch((error) => setNotice(error.message))
+      Promise.all([loadStudents(), loadReservations(), loadRooms()]).catch((error) => setNotice(error.message))
     }, 30000)
     return () => {
       active = false
       window.clearInterval(interval)
     }
-  }, [token, date, reservationStatus, loadStudents, loadReservations, loadRooms, loadLessons])
+  }, [token, date, reservationStatus, loadStudents, loadReservations, loadRooms])
 
   const filteredStudents = students.filter((student) => (
     `${student.name} ${student.matricula}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
@@ -108,10 +97,6 @@ export default function Reception() {
     `${reservation.student} ${reservation.studentId}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
     && (!reservationHour || reservation.startTime === reservationHour)
   ))
-  const filteredLessons = lessons.filter((lesson) => (
-    `${lesson.title} ${lesson.order} ${lesson.type}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
-  ))
-
   const startEdit = (student) => {
     setEditingId(student.id)
     setForm({
@@ -265,45 +250,6 @@ export default function Reception() {
     }
   }
 
-  const editLesson = (lesson) => {
-    setEditingLessonId(lesson.id)
-    setLessonForm({ order: lesson.order, title: lesson.title, type: lesson.type })
-  }
-
-  const saveLesson = async (event) => {
-    event.preventDefault()
-    setSaving(true)
-    setNotice('')
-    try {
-      const payload = { ...lessonForm, order: Number(lessonForm.order) }
-      if (editingLessonId) await api.updateLesson(token, editingLessonId, payload)
-      else await api.createLesson(token, payload)
-      setLessonForm(emptyLessonForm)
-      setEditingLessonId(null)
-      setNotice(editingLessonId ? 'Lección actualizada.' : 'Lección registrada.')
-      await loadLessons()
-    } catch (error) {
-      setNotice(error.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const deleteLesson = async () => {
-    if (!pendingLessonDelete) return
-    setSaving(true)
-    try {
-      await api.deleteLesson(token, pendingLessonDelete.id)
-      setPendingLessonDelete(null)
-      setNotice('Lección eliminada.')
-      await loadLessons()
-    } catch (error) {
-      setNotice(error.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
@@ -320,7 +266,6 @@ export default function Reception() {
         <button className={tab === 'students' ? 'active' : ''} type="button" onClick={() => setTab('students')}>Estudiantes <span>{students.length}</span></button>
         <button className={tab === 'reservations' ? 'active' : ''} type="button" onClick={() => setTab('reservations')}>Reservas <span>{reservations.length}</span></button>
         <button className={tab === 'rooms' ? 'active' : ''} type="button" onClick={() => setTab('rooms')}>Salones <span>{rooms.length}</span></button>
-        <button className={tab === 'lessons' ? 'active' : ''} type="button" onClick={() => setTab('lessons')}>Lecciones <span>{lessons.length}</span></button>
         <button type="button" onClick={() => navigate('/recepcion/asignacion-diaria')}>Asignación Diaria de Salones</button>
       </nav>
 
@@ -384,7 +329,7 @@ export default function Reception() {
             </label>
           </details>
           <div className="reception-section-heading"><h2>Reservas del {new Date(`${date}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</h2><span>{filteredReservations.length} resultados</span></div>
-          {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Nivel</th><th>Lección</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
+          {loading ? <p className="reception-empty">Cargando reservas...</p> : filteredReservations.length === 0 ? <p className="reception-empty">No hay reservas para esta fecha.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Hora</th><th>Estudiante</th><th>Nivel</th><th>Tipo</th><th>Modalidad</th><th>Estado</th><th>Asistencia</th></tr></thead><tbody>
             {filteredReservations.map((reservation) => <tr key={reservation.id}>
               <td>{reservation.startTime} - {reservation.endTime}</td><td>{reservation.student}<small>{reservation.studentId}</small></td><td>{reservation.level ? <span className="reception-level-badge" data-level={reservation.level} title={getLevel(reservation.level)?.name}>{reservation.level}</span> : '—'}</td><td>{reservation.lesson}</td><td>{reservation.modality}</td><td className={`reservation-status status-${reservation.status.toLowerCase()}`}>{reservation.status}</td>
               <td><select value={reservation.status} disabled={saving} onChange={(event) => updateReservationStatus(reservation, event.target.value)}><option value="Confirmada">Pendiente</option><option value="Completada">Asistió</option><option value="Cancelada">Cancelada</option></select></td>
@@ -407,28 +352,12 @@ export default function Reception() {
             <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingRoomId ? 'Guardar cambios' : 'Registrar salón'}</button>
             {editingRoomId && <button className="secondary" type="button" onClick={() => { setEditingRoomId(null); setRoomForm(emptyRoomForm) }}>Cancelar edición</button>}
           </form>
-        </div> : <div className="reception-management-grid">
-          <section className="reception-list-section">
-            <div className="reception-section-heading"><h2>Lecciones registradas</h2><span>{filteredLessons.length} resultados</span></div>
-            {loading ? <p className="reception-empty">Cargando lecciones...</p> : filteredLessons.length === 0 ? <p className="reception-empty">No hay lecciones registradas.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Orden</th><th>Título</th><th>Tipo</th><th>Acciones</th></tr></thead><tbody>
-              {filteredLessons.map((lesson) => <tr key={lesson.id}><td>{lesson.order}</td><td>{lesson.title}</td><td>{lesson.type}</td><td className="reception-row-actions"><button type="button" onClick={() => editLesson(lesson)}>Editar</button><button type="button" className="danger" onClick={() => setPendingLessonDelete(lesson)}>Eliminar</button></td></tr>)}
-            </tbody></table></div>}
-          </section>
-          <form className="reception-student-form" onSubmit={saveLesson}>
-            <h2>{editingLessonId ? 'Editar lección' : 'Registrar lección'}</h2>
-            <label htmlFor="lesson-order">Orden<input id="lesson-order" type="number" min="1" value={lessonForm.order} onChange={(event) => setLessonForm({ ...lessonForm, order: event.target.value })} required /></label>
-            <label htmlFor="lesson-title">Título<input id="lesson-title" value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} required /></label>
-            <label htmlFor="lesson-type">Tipo<select id="lesson-type" value={lessonForm.type} onChange={(event) => setLessonForm({ ...lessonForm, type: event.target.value })}><option value="Leccion">Lección</option><option value="Examen Escrito">Examen escrito</option><option value="Examen Oral">Examen oral</option><option value="Club Conversacion">Club de conversación</option></select></label>
-            <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingLessonId ? 'Guardar cambios' : 'Registrar lección'}</button>
-            {editingLessonId && <button className="secondary" type="button" onClick={() => { setEditingLessonId(null); setLessonForm(emptyLessonForm) }}>Cancelar edición</button>}
-          </form>
-        </div>}
+        </div> : null}
       </section>
 
       {pendingDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-heading"><h2 id="delete-heading">Eliminar estudiante</h2><p>Se eliminará a {pendingDelete.name} y sus reservas asociadas.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteStudent}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingDelete(null)}>Cancelar</button></div></section></div>}
       {pendingPasswordReset && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="reset-password-heading"><h2 id="reset-password-heading">Restablecer contraseña</h2><p>Se generará una contraseña temporal nueva para {pendingPasswordReset.name}. La contraseña actual dejará de funcionar.</p><div><button type="button" disabled={saving} onClick={resetStudentPassword}>{saving ? 'Restableciendo...' : 'Restablecer contraseña'}</button><button type="button" disabled={saving} onClick={() => setPendingPasswordReset(null)}>Cancelar</button></div></section></div>}
       {pendingRoomDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-room-heading"><h2 id="delete-room-heading">Eliminar salón</h2><p>¿Eliminar {pendingRoomDelete.name}? Los salones con reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteRoom}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingRoomDelete(null)}>Cancelar</button></div></section></div>}
-      {pendingLessonDelete && <div className="reception-dialog-backdrop"><section className="reception-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-lesson-heading"><h2 id="delete-lesson-heading">Eliminar lección</h2><p>¿Eliminar “{pendingLessonDelete.title}”? Las lecciones asociadas a reservas no se pueden borrar.</p><div><button type="button" className="danger" disabled={saving} onClick={deleteLesson}>{saving ? 'Eliminando...' : 'Eliminar'}</button><button type="button" onClick={() => setPendingLessonDelete(null)}>Cancelar</button></div></section></div>}
     </main>
   )
 }

@@ -26,6 +26,7 @@ const getDefaultHour = (dateKey) => {
   return Math.min(Math.max(next, hours[0]), hours[hours.length - 1])
 }
 
+const CLASS_TYPES = ['Lesson', 'Chat', 'Club']
 const studentTitle = (student) => `${student.name}${student.level ? ` · Nivel ${student.level} (${getLevel(student.level)?.name || ''})` : ''}`
 
 function StudentChip({ student, selected, onToggle, onRemove, draggable }) {
@@ -55,7 +56,6 @@ export default function DailyRoomAssignments() {
   const [rooms, setRooms] = useState([])
   const [unassigned, setUnassigned] = useState([])
   const [rosettaRooms, setRosettaRooms] = useState([])
-  const [lessons, setLessons] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
   const [dirty, setDirty] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -69,7 +69,6 @@ export default function DailyRoomAssignments() {
     setRooms(result.rooms || [])
     setUnassigned(result.unassigned || [])
     setRosettaRooms(result.rosettaRooms || [])
-    setLessons(result.lessons || [])
     setSelectedIds([])
     setDirty(false)
   }
@@ -190,13 +189,20 @@ export default function DailyRoomAssignments() {
   }
 
   const saveHour = async () => {
+    const missingNumber = rooms.find((room) => room.classType === 'Lesson' && !(Number(room.lessonNumber) >= 1))
+    if (missingNumber) {
+      setNotice(`Escribe el número de la lección en ${missingNumber.name}.`)
+      setNoticeIsError(true)
+      return
+    }
     setSaving(true)
     setNotice('')
     try {
       const payload = rooms.map((room) => ({
         roomId: room.id,
         teacher: room.teacher || '',
-        lessonId: room.lessonId || null,
+        classType: room.classType || null,
+        lessonNumber: room.classType === 'Lesson' ? Number(room.lessonNumber) : null,
         studentIds: room.students.map((student) => student.id),
       }))
       const result = await api.saveReceptionHourlyAssignments(token, date, hour, payload)
@@ -275,12 +281,17 @@ export default function DailyRoomAssignments() {
                   </header>
                   <div className="hourly-room-fields">
                     <label>Maestro ({shiftLabel})<input maxLength="100" value={room.teacher} onChange={(event) => updateRoom(room.id, { teacher: event.target.value })} placeholder="Nombre del maestro" /></label>
-                    <label>Lección (opcional)
-                      <select value={room.lessonId || ''} onChange={(event) => updateRoom(room.id, { lessonId: event.target.value ? Number(event.target.value) : null })}>
-                        <option value="">Sin lección</option>
-                        {lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.order}. {lesson.title}</option>)}
-                      </select>
-                    </label>
+                    <div className="hourly-class-fields">
+                      <label>Clase
+                        <select value={room.classType || ''} onChange={(event) => updateRoom(room.id, { classType: event.target.value || null, lessonNumber: event.target.value === 'Lesson' ? room.lessonNumber : null })}>
+                          <option value="">Sin definir</option>
+                          {CLASS_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </label>
+                      {room.classType === 'Lesson' && <label>Número de lesson
+                        <input type="number" inputMode="numeric" min="1" max="999" step="1" required value={room.lessonNumber ?? ''} onChange={(event) => updateRoom(room.id, { lessonNumber: event.target.value === '' ? null : event.target.value })} placeholder="Ej. 12" aria-label={`Número de lesson en ${room.name}`} />
+                      </label>}
+                    </div>
                   </div>
                   <div className="hourly-chip-list hourly-room-students">
                     {room.students.length ? room.students.map((student) => <StudentChip key={student.id} student={student} draggable onRemove={() => removeStudent(room.id, student)} />) : <span className="hourly-room-empty">Sin alumnos</span>}

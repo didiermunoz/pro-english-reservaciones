@@ -7,7 +7,7 @@ Aplicación de agenda con frontend React/Vite, API REST Express y persistencia M
 - Node.js 20.19+ o 22.12+
 - MySQL con el esquema existente de `database/schema.sql`
 - Una cuenta de recepción y cuentas de estudiante creadas en la base
-- Contratos activos, salones y lecciones configurados para permitir reservaciones
+- Contratos activos y salones configurados para permitir reservaciones
 
 No hay cuentas ni reservas de prueba incluidas en el frontend. Los hashes bcrypt existentes (incluido costo 12) se validan en el servidor.
 
@@ -41,9 +41,8 @@ Para preparar datos de muestra para una revisión, ejecuta `npm run db:seed:demo
 
 Si `recepcion` está vacía, configura `BOOTSTRAP_RECEPTION_USERNAME`, `BOOTSTRAP_RECEPTION_NAME` y una contraseña privada de al menos 12 caracteres en `.env`, ejecuta `npm run bootstrap:reception` una sola vez y retira la contraseña del archivo. El comando se niega a crear cuentas si ya existe una. No se incluye un usuario de demostración ni una contraseña predecible.
 
-El comando `npm run dev:api:demo` activa `DEMO_AUTO_SETUP=true`. Después de un login válido de estudiante, la API crea en MySQL un contrato activo de 6 horas semanales (modalidad presencial, vigencia de un año) solo si ese alumno no tiene uno, además de crear un salón y una lección solo si esas tablas están vacías. El modo normal está deshabilitado por defecto y la preparación nunca se ejecuta con `NODE_ENV=production`. Puedes cambiar las horas con `DEMO_CONTRACT_WEEKLY_HOURS`.
-
-Sin el modo demo, inicia sesión en Recepción y registra al menos un salón y una lección para habilitar reservaciones. Con el modo demo, esos recursos se crean automáticamente en MySQL solo cuando las tablas están vacías. Los estudiantes y contratos existentes se consultan directamente de la base de datos.
+El comando `npm run dev:api:demo` activa `DEMO_AUTO_SETUP=true`. Después de un login válido de estudiante, la API crea en MySQL un contrato activo de 6 horas semanales (modalidad presencial, vigencia de un año) solo si ese alumno no tiene uno, además de crear un salón solo si no hay ninguno. El modo normal está deshabilitado por defecto y la preparación nunca se ejecuta con `NODE_ENV=production`. Puedes cambiar las horas con `DEMO_CONTRACT_WEEKLY_HOURS`.
+Sin el modo demo, inicia sesión en Recepción y registra al menos un salón para habilitar reservaciones. Con el modo demo, el salón se crea automáticamente en MySQL solo cuando las tablas están vacías. Los estudiantes y contratos existentes se consultan directamente de la base de datos.
 
 ## Autenticación y permisos
 
@@ -57,8 +56,8 @@ Rosetta es una clase especial que el alumno reserva por su cuenta desde la agend
 - El cupo por hora es el *Aforo máximo* del salón marcado como **Salón de Rosetta** en Recepción > Salones. Ese salón no aparece en la asignación diaria ni en la pantalla TV.
 
 ## Asignación de salones por hora y pantalla TV
-Aplica una vez `database/migration-asignacion-por-hora.sql` con un usuario administrador (la lección de cada salón pasa a ser opcional).
-- **Recepción → Asignación Diaria de Salones** (`/recepcion/asignacion-diaria`): elige fecha y hora (por defecto, la siguiente: a las 12:50 muestra la clase de la 1). Arriba aparecen las matrículas con clase a esa hora que aún no tienen salón; selecciónalas y pulsa «Colocar aquí», o arrástralas al salón. Cada salón tiene su maestro del turno y una lección opcional. Guardar solo afecta esa hora.
+Aplica una vez, en orden, `database/migration-asignacion-por-hora.sql` y `database/migration-tipo-de-clase.sql` con un usuario administrador.
+- **Recepción → Asignación Diaria de Salones** (`/recepcion/asignacion-diaria`): elige fecha y hora (por defecto, la siguiente: a las 12:50 muestra la clase de la 1). Arriba aparecen las matrículas con clase a esa hora que aún no tienen salón; selecciónalas y pulsa «Colocar aquí», o arrástralas al salón. Cada salón tiene su maestro del turno y la clase: **Lesson** (con su número, que se escribe a mano), **Chat** o **Club**. Guardar solo afecta esa hora. La tabla `lecciones` ya no se usa (se conserva por el historial).
 - **Pantalla TV** (`/recepcion/pantalla-tv`): muestra una hora a la vez con salón, maestro y matrículas. En modo automático muestra la hora actual y desde el minuto 40 cambia a la siguiente clase. Los alumnos con Rosetta aparecen en la tarjeta morada del salón de Rosetta. El tamaño del texto se ajusta solo para que todo quepa.
 ## Seguridad
 - **Producción:** define `NODE_ENV=production`. La API no arranca si `JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 caracteres.

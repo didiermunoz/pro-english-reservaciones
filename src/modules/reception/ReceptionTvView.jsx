@@ -169,7 +169,7 @@ export default function ReceptionTvView({ onTokenIssued }) {
                 <h2>{room.name}</h2>
               </header>
               <p className="tvs-teacher"><span>Maestro</span><strong>{room.isRosetta ? (room.teacher && room.teacher !== room.name ? room.teacher : 'Rosetta') : room.teacher || 'Por asignar'}</strong></p>
-              {room.lessonTitle && !room.isRosetta && <p className="tvs-lesson">{room.lessonTitle}</p>}
+              {room.classLabel && !room.isRosetta && <p className="tvs-lesson">{room.classLabel}</p>}
               <ul className="tvs-students" aria-label={`Matrículas en ${room.name}`}>
                 {room.students.map((student) => <li key={student.id}>{student.matricula}</li>)}
               </ul>

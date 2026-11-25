@@ -191,8 +191,8 @@ async function getStudentReservations(studentId) {
       TIME_FORMAT(r.hora_inicio, '%H:%i') AS startTime,
       TIME_FORMAT(r.hora_fin, '%H:%i') AS endTime,
       r.modalidad_asistencia AS modality, r.link_meet AS meetLink,
-      r.estado AS status, r.tipo AS type, l.titulo AS lesson
-     FROM reservas r LEFT JOIN lecciones l ON l.id = r.leccion_id
+      r.estado AS status, r.tipo AS type
+     FROM reservas r
      WHERE r.estudiante_id = ? ORDER BY r.fecha, r.hora_inicio`,
     [studentId],
   )
@@ -207,7 +207,7 @@ async function getStudentReservations(studentId) {
     meetLink: row.meetLink,
     status: row.status,
     type: row.type,
-    lesson: row.type === 'Rosetta' ? 'Rosetta' : row.lesson || 'Clase',
+    lesson: row.type === 'Rosetta' ? 'Rosetta' : 'Clase',
   }))
 }
 
@@ -225,87 +225,6 @@ function isValidDateKey(value) {
 function requireDateKey(value) {
   if (!isValidDateKey(value)) throw Object.assign(new Error('Fecha inválida.'), { status: 400 })
   return value
-}
-
-async function getDailyRoomAssignments(date) {
-  const [rooms] = await pool.query(
-    `SELECT s.id, s.nombre_salon AS name, s.capacidad_maxima AS capacity,
-      COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
-      COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher
-     FROM salones s LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
-     WHERE s.es_rosetta = FALSE
-     ORDER BY s.nombre_salon`,
-    [date],
-  )
-  const [blocks] = await pool.query(
-    `SELECT b.id, b.salon_id AS roomId, b.leccion_id AS lessonId,
-      l.titulo AS lessonTitle, l.tipo AS lessonType,
-      TIME_FORMAT(b.hora_inicio, '%H:%i') AS startTime,
-      TIME_FORMAT(b.hora_fin, '%H:%i') AS endTime
-     FROM bloques_diarios_salon b LEFT JOIN lecciones l ON l.id = b.leccion_id
-     WHERE b.fecha = ? ORDER BY b.salon_id, b.hora_inicio`,
-    [date],
-  )
-  const [attendees] = await pool.query(
-    `SELECT a.bloque_id AS blockId, e.id, e.matricula, e.nombre_completo AS name
-     FROM alumnos_bloque_diario a JOIN estudiantes e ON e.id = a.estudiante_id
-     JOIN bloques_diarios_salon b ON b.id = a.bloque_id
-     WHERE b.fecha = ? ORDER BY e.nombre_completo`,
-    [date],
-  )
-  const attendeesByBlock = new Map()
-  for (const attendee of attendees) {
-    const list = attendeesByBlock.get(attendee.blockId) || []
-    list.push({ id: attendee.id, matricula: attendee.matricula, name: attendee.name })
-    attendeesByBlock.set(attendee.blockId, list)
-  }
-  const roomsById = new Map(rooms.map((room) => [room.id, { ...room, blocks: [] }]))
-  for (const block of blocks) {
-    roomsById.get(block.roomId)?.blocks.push({ ...block, students: attendeesByBlock.get(block.id) || [] })
-  }
-  return [...roomsById.values()]
-}
-
-function validateDailyRoomPayload(rooms) {
-  if (!Array.isArray(rooms)) throw Object.assign(new Error('La lista de salones es obligatoria.'), { status: 400 })
-  const roomIds = new Set()
-  const studentIntervals = new Map()
-  const referencedStudentIds = new Set()
-  const referencedLessonIds = new Set()
-  for (const room of rooms) {
-    const roomId = Number(room.roomId)
-    if (!Number.isInteger(roomId) || roomId < 1 || roomIds.has(roomId)) throw Object.assign(new Error('La asignación contiene salones inválidos o repetidos.'), { status: 400 })
-    roomIds.add(roomId)
-    for (const teacher of [room.morningTeacher, room.afternoonTeacher]) {
-      if (typeof teacher !== 'string' || teacher.trim().length > 100) throw Object.assign(new Error('El nombre del profesor debe tener como máximo 100 caracteres.'), { status: 400 })
-    }
-    if (!Array.isArray(room.blocks)) throw Object.assign(new Error('Los bloques de horario del salón son inválidos.'), { status: 400 })
-    const intervals = []
-    for (const block of room.blocks) {
-      const lessonId = Number(block.lessonId)
-      const startTime = String(block.startTime || '')
-      const endTime = String(block.endTime || '')
-      if (!Number.isInteger(lessonId) || lessonId < 1) throw Object.assign(new Error('Selecciona una lección para cada bloque.'), { status: 400 })
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || endTime <= startTime) {
-        throw Object.assign(new Error('Cada bloque debe tener un horario válido y una hora de fin posterior al inicio.'), { status: 400 })
-      }
-      if (intervals.some((interval) => startTime < interval.end && endTime > interval.start)) throw Object.assign(new Error('Hay bloques de horario solapados en un salón.'), { status: 409 })
-      intervals.push({ start: startTime, end: endTime })
-      referencedLessonIds.add(lessonId)
-      if (!Array.isArray(block.studentIds)) throw Object.assign(new Error('La lista de estudiantes del bloque es inválida.'), { status: 400 })
-      const studentIds = [...new Set(block.studentIds.map(Number))]
-      block.validatedStudentIds = studentIds
-      for (const studentId of studentIds) {
-        if (!Number.isInteger(studentId) || studentId < 1) throw Object.assign(new Error('La asignación contiene estudiantes inválidos.'), { status: 400 })
-        const studentBlocks = studentIntervals.get(studentId) || []
-        if (studentBlocks.some((interval) => startTime < interval.end && endTime > interval.start)) throw Object.assign(new Error('Un estudiante no puede estar asignado a dos salones al mismo tiempo.'), { status: 409 })
-        studentBlocks.push({ start: startTime, end: endTime })
-        studentIntervals.set(studentId, studentBlocks)
-        referencedStudentIds.add(studentId)
-      }
-    }
-  }
-  return { roomIds, referencedLessonIds, referencedStudentIds }
 }
 
 async function ensureDemoSetup(studentId) {
@@ -340,14 +259,6 @@ async function ensureDemoSetup(studentId) {
       )
     }
 
-    const [lessons] = await connection.query('SELECT id FROM lecciones LIMIT 1')
-    if (!lessons[0]) {
-      const [orderRows] = await connection.query('SELECT COALESCE(MAX(orden), 0) + 1 AS nextOrder FROM lecciones')
-      await connection.query(
-        'INSERT INTO lecciones (orden, titulo, tipo) VALUES (?, ?, ?)',
-        [Number(orderRows[0].nextOrder), 'Lección de demostración', 'Leccion'],
-      )
-    }
     await connection.commit()
   } catch (error) {
     await connection.rollback()
@@ -362,14 +273,14 @@ app.get('/api/health', asyncRoute(async (_req, res) => {
   await pool.query('SELECT 1')
   if (process.env.NODE_ENV === 'production') return res.json({ status: 'ok', database: 'connected' })
   const counts = {}
-  for (const table of ['estudiantes', 'recepcion', 'contratos', 'salones', 'lecciones', 'reservas']) {
+  for (const table of ['estudiantes', 'recepcion', 'contratos', 'salones', 'reservas']) {
     const [rows] = await pool.query(`SELECT COUNT(*) AS total FROM ${table}`)
     counts[table] = Number(rows[0].total)
   }
   res.json({
     status: 'ok',
     database: 'connected',
-    readyForBooking: counts.recepcion > 0 && counts.salones > 0 && counts.lecciones > 0,
+    readyForBooking: counts.recepcion > 0 && counts.salones > 0,
     counts,
   })
 }))
@@ -509,14 +420,12 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
     if (!student?.horas_semanales) throw Object.assign(new Error('No hay un contrato activo con horas disponibles.'), { status: 409 })
     if (!CONTRACT_MODALITIES.includes(student.modalidad)) throw Object.assign(new Error('Tu contrato no tiene una modalidad válida. Contacta a recepción.'), { status: 409 })
     const attendanceMode = student.modalidad
-    const [lessons] = await connection.query('SELECT id FROM lecciones ORDER BY orden LIMIT 1')
     const bookableDateKey = await getBookableDateKey()
     for (const slot of slots) {
       const type = slot.type === undefined ? 'Clase' : slot.type
       if (!RESERVATION_TYPES.includes(type)) throw Object.assign(new Error('Tipo de reserva inválido.'), { status: 400 })
       const isRosetta = type === 'Rosetta'
       if (isRosetta && !['ilimitado', 'paquete'].includes(rosettaPlan)) throw Object.assign(new Error('No tienes Rosetta en tu contrato. Pregunta en recepción.'), { status: 403 })
-      if (!isRosetta && !lessons[0]) throw Object.assign(new Error('No hay lecciones configuradas.'), { status: 409 })
       const dateKey = String(slot.dateKey || slot.id || '').slice(0, 10)
       const startHour = Number(slot.hour)
       const classHours = getClassHours(dateKey)
@@ -556,8 +465,8 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
       )
       if (!rooms[0]) throw Object.assign(new Error(isRosetta ? 'El salón de Rosetta ya está lleno en uno de los horarios.' : 'No hay salones disponibles para uno de los horarios.'), { status: 409 })
       await connection.query(
-        'INSERT INTO reservas (estudiante_id, salon_id, leccion_id, fecha, hora_inicio, hora_fin, modalidad_asistencia, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [req.auth.userId, rooms[0].id, isRosetta ? null : lessons[0].id, dateKey, start, end, attendanceMode, type],
+        'INSERT INTO reservas (estudiante_id, salon_id, fecha, hora_inicio, hora_fin, modalidad_asistencia, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.auth.userId, rooms[0].id, dateKey, start, end, attendanceMode, type],
       )
     }
     await connection.commit()
@@ -684,74 +593,10 @@ app.get('/api/reception/rooms', authenticate, requireRole('reception'), asyncRou
   res.json({ rooms: rows.map(serializeRoom) })
 }))
 
-app.get('/api/reception/lessons', authenticate, requireRole('reception'), asyncRoute(async (_req, res) => {
-  const [rows] = await pool.query('SELECT id, orden AS lessonOrder, titulo AS title, tipo AS type FROM lecciones ORDER BY orden')
-  res.json({ lessons: rows.map(({ lessonOrder, ...lesson }) => ({ ...lesson, order: lessonOrder })) })
-}))
-
-app.get('/api/reception/daily-room-assignments', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const date = requireDateKey(String(req.query.date || ''))
-  res.json({ date, rooms: await getDailyRoomAssignments(date) })
-}))
-
-app.put('/api/reception/daily-room-assignments/:date', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const date = requireDateKey(String(req.params.date || ''))
-  const rooms = req.body.rooms
-  const { roomIds, referencedLessonIds, referencedStudentIds } = validateDailyRoomPayload(rooms)
-  const connection = await pool.getConnection()
-  try {
-    await connection.beginTransaction()
-    const [dbRooms] = await connection.query('SELECT id, capacidad_maxima AS capacity FROM salones WHERE es_rosetta = FALSE ORDER BY id FOR UPDATE')
-    if (roomIds.size !== dbRooms.length || dbRooms.some((room) => !roomIds.has(room.id))) {
-      throw Object.assign(new Error('La lista de salones cambió. Actualiza los datos e inténtalo de nuevo.'), { status: 409 })
-    }
-    const capacityByRoom = new Map(dbRooms.map((room) => [room.id, Number(room.capacity)]))
-    for (const room of rooms) {
-      if (room.blocks.some((block) => block.validatedStudentIds.length > capacityByRoom.get(Number(room.roomId)))) {
-        throw Object.assign(new Error(`Un bloque supera el aforo del salón ${room.roomId}.`), { status: 400 })
-      }
-    }
-    if (referencedLessonIds.size) {
-      const lessonPlaceholders = [...referencedLessonIds].map(() => '?').join(', ')
-      const [knownLessons] = await connection.query(`SELECT id FROM lecciones WHERE id IN (${lessonPlaceholders})`, [...referencedLessonIds])
-      if (knownLessons.length !== referencedLessonIds.size) throw Object.assign(new Error('Una o más lecciones ya no existen.'), { status: 400 })
-    }
-    if (referencedStudentIds.size) {
-      const studentPlaceholders = [...referencedStudentIds].map(() => '?').join(', ')
-      const [knownStudents] = await connection.query(`SELECT id FROM estudiantes WHERE id IN (${studentPlaceholders})`, [...referencedStudentIds])
-      if (knownStudents.length !== referencedStudentIds.size) throw Object.assign(new Error('Uno o más estudiantes ya no existen.'), { status: 400 })
-    }
-
-    await connection.query('DELETE FROM bloques_diarios_salon WHERE fecha = ?', [date])
-    await connection.query('DELETE FROM asignaciones_diarias_salon WHERE fecha = ?', [date])
-    for (const room of rooms) {
-      const roomId = Number(room.roomId)
-      await connection.query(
-        'INSERT INTO asignaciones_diarias_salon (fecha, salon_id, profesor_manana, profesor_tarde) VALUES (?, ?, ?, ?)',
-        [date, roomId, room.morningTeacher.trim(), room.afternoonTeacher.trim()],
-      )
-      for (const block of room.blocks) {
-        const [result] = await connection.query(
-          'INSERT INTO bloques_diarios_salon (fecha, salon_id, leccion_id, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?)',
-          [date, roomId, Number(block.lessonId), `${block.startTime}:00`, `${block.endTime}:00`],
-        )
-        for (const studentId of block.validatedStudentIds) {
-          await connection.query('INSERT INTO alumnos_bloque_diario (bloque_id, estudiante_id) VALUES (?, ?)', [result.insertId, studentId])
-        }
-      }
-    }
-    await connection.commit()
-    res.json({ date, rooms: await getDailyRoomAssignments(date), message: 'Asignaciones diarias guardadas.' })
-  } catch (error) {
-    await connection.rollback()
-    throw error
-  } finally {
-    connection.release()
-  }
-}))
-
 // === Asignación de salones por hora ===
 const AFTERNOON_START_HOUR = 13
+const CLASS_TYPES = ['Lesson', 'Chat', 'Club']
+const formatClassLabel = (classType, lessonNumber) => (classType === 'Lesson' ? `Lesson ${lessonNumber}` : classType || null)
 const toTimeValue = (hour) => `${String(hour).padStart(2, '0')}:00:00`
 const toHourLabel = (hour) => `${String(hour).padStart(2, '0')}:00`
 function requireClassHour(date, value) {
@@ -769,11 +614,10 @@ async function getHourAssignments(date, hour, db = pool) {
     `SELECT s.id, s.nombre_salon AS name, s.capacidad_maxima AS capacity,
       COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
       COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher,
-      b.id AS blockId, b.leccion_id AS lessonId, l.titulo AS lessonTitle
+      b.id AS blockId, b.tipo_clase AS classType, b.numero_leccion AS lessonNumber
      FROM salones s
      LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
      LEFT JOIN bloques_diarios_salon b ON b.salon_id = s.id AND b.fecha = ? AND b.hora_inicio = ?
-     LEFT JOIN lecciones l ON l.id = b.leccion_id
      WHERE s.es_rosetta = FALSE
      ORDER BY s.nombre_salon, s.id`,
     [date, date, toTimeValue(hour)],
@@ -800,8 +644,9 @@ async function getHourAssignments(date, hour, db = pool) {
     name: room.name,
     capacity: Number(room.capacity),
     teacher: (isAfternoon ? room.afternoonTeacher : room.morningTeacher) || '',
-    lessonId: room.lessonId || null,
-    lessonTitle: room.lessonTitle || null,
+    classType: room.classType || null,
+    lessonNumber: room.lessonNumber ?? null,
+    classLabel: formatClassLabel(room.classType, room.lessonNumber),
     students: byRoom.get(room.id) || [],
   }))
 }
@@ -843,11 +688,10 @@ async function getRosettaRooms(date, hour) {
 app.get('/api/reception/hourly-room-assignments', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const date = requireDateKey(String(req.query.date || ''))
   const hour = requireClassHour(date, req.query.hour)
-  const [rooms, reserved, rosettaRooms, lessons] = await Promise.all([
+  const [rooms, reserved, rosettaRooms] = await Promise.all([
     getHourAssignments(date, hour),
     getHourReservations(date, hour, 'Clase'),
     getRosettaRooms(date, hour),
-    pool.query('SELECT id, orden AS lessonOrder, titulo AS title FROM lecciones ORDER BY orden').then(([rows]) => rows),
   ])
   const assignedIds = new Set(rooms.flatMap((room) => room.students.map((student) => student.id)))
   const reservedIds = new Set(reserved.map((student) => student.id))
@@ -857,7 +701,6 @@ app.get('/api/reception/hourly-room-assignments', authenticate, requireRole('rec
     rooms: rooms.map((room) => ({ ...room, students: room.students.map((student) => ({ ...student, hasReservation: reservedIds.has(student.id) })) })),
     unassigned: reserved.filter((student) => !assignedIds.has(student.id)),
     rosettaRooms,
-    lessons: lessons.map(({ lessonOrder, ...lesson }) => ({ ...lesson, order: lessonOrder })),
   })
 }))
 
@@ -870,10 +713,12 @@ app.put('/api/reception/hourly-room-assignments/:date/:hour', authenticate, requ
   const seenStudents = new Set()
   const parsed = rooms.map((room) => {
     const roomId = Number(room.roomId)
-    const lessonId = room.lessonId === null || room.lessonId === '' || room.lessonId === undefined ? null : Number(room.lessonId)
+    const classType = room.classType === null || room.classType === '' || room.classType === undefined ? null : room.classType
+    const lessonNumber = classType === 'Lesson' ? Number(room.lessonNumber) : null
     const teacher = typeof room.teacher === 'string' ? room.teacher.trim() : ''
     if (!Number.isInteger(roomId) || roomId < 1 || seenRooms.has(roomId)) throw Object.assign(new Error('La asignación contiene salones inválidos o repetidos.'), { status: 400 })
-    if (lessonId !== null && (!Number.isInteger(lessonId) || lessonId < 1)) throw Object.assign(new Error('Lección inválida.'), { status: 400 })
+    if (classType !== null && !CLASS_TYPES.includes(classType)) throw Object.assign(new Error('El tipo de clase debe ser Lesson, Chat o Club.'), { status: 400 })
+    if (classType === 'Lesson' && (!Number.isInteger(lessonNumber) || lessonNumber < 1 || lessonNumber > 999)) throw Object.assign(new Error('Escribe el número de la lección (1 a 999).'), { status: 400 })
     if (teacher.length > 100) throw Object.assign(new Error('El nombre del profesor debe tener como máximo 100 caracteres.'), { status: 400 })
     if (!Array.isArray(room.studentIds) || room.studentIds.length > 200) throw Object.assign(new Error('La lista de alumnos es inválida.'), { status: 400 })
     seenRooms.add(roomId)
@@ -883,7 +728,7 @@ app.put('/api/reception/hourly-room-assignments/:date/:hour', authenticate, requ
       if (seenStudents.has(studentId)) throw Object.assign(new Error('Un alumno no puede estar en dos salones a la misma hora.'), { status: 409 })
       seenStudents.add(studentId)
     }
-    return { roomId, lessonId, teacher, studentIds }
+    return { roomId, classType, lessonNumber, teacher, studentIds }
   })
   const connection = await pool.getConnection()
   try {
@@ -907,11 +752,6 @@ app.put('/api/reception/hourly-room-assignments/:date/:hour', authenticate, requ
       const [known] = await connection.query(`SELECT id FROM estudiantes WHERE id IN (${ids.map(() => '?').join(', ')})`, ids)
       if (known.length !== ids.length) throw Object.assign(new Error('Uno o más alumnos ya no existen.'), { status: 400 })
     }
-    const lessonIds = [...new Set(parsed.map((room) => room.lessonId).filter(Boolean))]
-    if (lessonIds.length) {
-      const [known] = await connection.query(`SELECT id FROM lecciones WHERE id IN (${lessonIds.map(() => '?').join(', ')})`, lessonIds)
-      if (known.length !== lessonIds.length) throw Object.assign(new Error('Una o más lecciones ya no existen.'), { status: 400 })
-    }
     // Reemplaza solo la hora indicada; las demás horas del día no se tocan.
     await connection.query(
       'DELETE b FROM bloques_diarios_salon b JOIN salones s ON s.id = b.salon_id WHERE b.fecha = ? AND b.hora_inicio = ? AND s.es_rosetta = FALSE',
@@ -927,10 +767,10 @@ app.put('/api/reception/hourly-room-assignments/:date/:hour', authenticate, requ
          ON DUPLICATE KEY UPDATE profesor_manana = VALUES(profesor_manana), profesor_tarde = VALUES(profesor_tarde)`,
         [date, room.roomId, morningTeacher, afternoonTeacher],
       )
-      if (!room.studentIds.length && !room.lessonId) continue
+      if (!room.studentIds.length && !room.classType) continue
       const [block] = await connection.query(
-        'INSERT INTO bloques_diarios_salon (fecha, salon_id, leccion_id, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?)',
-        [date, room.roomId, room.lessonId, toTimeValue(hour), toTimeValue(hour + 1)],
+        'INSERT INTO bloques_diarios_salon (fecha, salon_id, tipo_clase, numero_leccion, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?, ?)',
+        [date, room.roomId, room.classType, room.lessonNumber, toTimeValue(hour), toTimeValue(hour + 1)],
       )
       for (const studentId of room.studentIds) {
         await connection.query('INSERT INTO alumnos_bloque_diario (bloque_id, estudiante_id) VALUES (?, ?)', [block.insertId, studentId])
@@ -972,7 +812,7 @@ app.get('/api/reception/daily-room-assignments/tv', authenticate, requireAnyRole
       id: room.id,
       name: room.name,
       teacher: room.teacher,
-      lessonTitle: room.lessonTitle,
+      classLabel: room.classLabel,
       isRosetta: false,
       students: room.students.map(({ id, matricula }) => ({ id, matricula })),
     })),
@@ -980,7 +820,7 @@ app.get('/api/reception/daily-room-assignments/tv', authenticate, requireAnyRole
       id: room.id,
       name: room.name,
       teacher: room.teacher,
-      lessonTitle: 'Rosetta',
+      classLabel: 'Rosetta',
       isRosetta: true,
       students: room.students.map(({ id, matricula }) => ({ id, matricula })),
     })),
@@ -995,33 +835,6 @@ app.get('/api/reception/daily-room-assignments/tv', authenticate, requireAnyRole
     hours: hours.map(toHourLabel),
     rooms,
   })
-}))
-
-app.post('/api/reception/lessons', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const order = Number(req.body.order)
-  const title = String(req.body.title || '').trim()
-  const type = String(req.body.type || '')
-  const validTypes = ['Leccion', 'Examen Escrito', 'Examen Oral', 'Club Conversacion']
-  if (!Number.isInteger(order) || order < 1 || !title || !validTypes.includes(type)) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
-  const [result] = await pool.query('INSERT INTO lecciones (orden, titulo, tipo) VALUES (?, ?, ?)', [order, title, type])
-  res.status(201).json({ lesson: { id: result.insertId, order, title, type } })
-}))
-
-app.patch('/api/reception/lessons/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const order = Number(req.body.order)
-  const title = String(req.body.title || '').trim()
-  const type = String(req.body.type || '')
-  const validTypes = ['Leccion', 'Examen Escrito', 'Examen Oral', 'Club Conversacion']
-  if (!Number.isInteger(order) || order < 1 || !title || !validTypes.includes(type)) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
-  const [result] = await pool.query('UPDATE lecciones SET orden = ?, titulo = ?, tipo = ? WHERE id = ?', [order, title, type, req.params.id])
-  if (!result.affectedRows) return sendError(res, 404, 'Lección no encontrada.', 'LESSON_NOT_FOUND')
-  res.json({ lesson: { id: Number(req.params.id), order, title, type } })
-}))
-
-app.delete('/api/reception/lessons/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const [result] = await pool.query('DELETE FROM lecciones WHERE id = ?', [req.params.id])
-  if (!result.affectedRows) return sendError(res, 404, 'Lección no encontrada.', 'LESSON_NOT_FOUND')
-  res.status(204).end()
 }))
 
 app.post('/api/reception/rooms', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
@@ -1211,13 +1024,12 @@ app.get('/api/reception/reservations', authenticate, requireRole('reception'), a
   const [rows] = await pool.query(
     `SELECT r.id, e.matricula, e.nombre_completo, e.nivel AS level, DATE_FORMAT(r.fecha, '%Y-%m-%d') AS dateKey,
       TIME_FORMAT(r.hora_inicio, '%H:%i') AS startTime, TIME_FORMAT(r.hora_fin, '%H:%i') AS endTime,
-      r.estado AS status, r.modalidad_asistencia AS modality, r.tipo AS type, l.titulo AS lesson
-     FROM reservas r JOIN estudiantes e ON e.id = r.estudiante_id
-     LEFT JOIN lecciones l ON l.id = r.leccion_id ${where}
+      r.estado AS status, r.modalidad_asistencia AS modality, r.tipo AS type
+     FROM reservas r JOIN estudiantes e ON e.id = r.estudiante_id ${where}
      ORDER BY r.fecha, r.hora_inicio, e.nombre_completo`,
     params,
   )
-  res.json({ reservations: rows.map((row) => ({ ...row, lesson: row.type === 'Rosetta' ? 'Rosetta' : row.lesson, studentId: row.matricula, student: row.nombre_completo })) })
+  res.json({ reservations: rows.map((row) => ({ ...row, lesson: row.type, studentId: row.matricula, student: row.nombre_completo })) })
 }))
 
 app.patch('/api/reception/reservations/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
@@ -1275,7 +1087,7 @@ app.patch('/api/reception/reservations/:id', authenticate, requireRole('receptio
 
 app.use((error, req, res, _next) => {
   if (error.code === 'ER_DUP_ENTRY') {
-    const message = req.path.includes('/lessons') ? 'El orden de lección ya está ocupado.' : req.path.includes('/students') ? 'La matrícula ya está registrada.' : 'Ya existe un registro con esos datos.'
+    const message = req.path.includes('/students') ? 'La matrícula ya está registrada.' : 'Ya existe un registro con esos datos.'
     return sendError(res, 409, message, 'DUPLICATE_RECORD')
   }
   if (String(error.code || '').startsWith('ER_ROW_IS_REFERENCED')) return sendError(res, 409, 'No se puede eliminar este registro porque tiene datos asociados.', 'RECORD_IN_USE')

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../Services/api'
+import { shouldRememberAuthSession } from '../../Services/auth'
 import { useStudent } from '../../Services/useStudent'
 import styles from './ChangePasswordPage.module.css'
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
-  const { token, currentStudent, refreshSession, logout } = useStudent()
+  const { token, currentStudent, acceptSession, logout } = useStudent()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState(currentStudent?.mustChangePassword ? 'Debes cambiar tu contraseña temporal antes de continuar.' : '')
@@ -29,8 +30,9 @@ export default function ChangePasswordPage() {
     }
     setLoading(true)
     try {
-      await api.changePassword(token, password)
-      await refreshSession()
+      // La API invalida el token anterior y devuelve uno nuevo.
+      const payload = await api.changePassword(token, password)
+      acceptSession(payload, shouldRememberAuthSession())
       navigate('/home', { replace: true })
     } catch (changeError) {
       setError(changeError.message)

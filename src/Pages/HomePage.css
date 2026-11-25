@@ -1126,6 +1126,10 @@ a {
   background: var(--bg-light);
 }
 
+.footer-brand .student-brand {
+  color: var(--text-dark);
+}
+
 .footer-brand p {
   max-width: 270px;
   margin: 14px 0 0;

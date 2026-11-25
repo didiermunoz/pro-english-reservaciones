@@ -241,7 +241,8 @@ body:has(.reception-workspace) {
 .reception-workspace .reservation-status.status-cancelada { color: #b91c1c; background: #fef2f2; }
 .reception-workspace .reception-table select { min-height: 38px; padding: 7px 10px; }
 
-.reception-workspace .reception-row-actions { gap: 7px; }
+.reception-workspace .reception-row-actions { flex-wrap: wrap; gap: 7px; min-width: 128px; }
+.reception-workspace .reception-row-actions button { white-space: nowrap; }
 .reception-workspace .reception-row-actions button {
   min-height: 34px;
   padding: 7px 10px;
@@ -347,3 +348,8 @@ body:has(.reception-workspace) {
 .reception-expiry-badge[data-status="expired"] { border-color: #fca5a5; color: #b91c1c; background: #fee2e2; }
 .reception-expiry-badge[data-status="soon"] { border-color: #fcd34d; color: #b45309; background: #fef3c7; }
 .reception-expiry-badge[data-status="ok"] { border-color: #86efac; color: #166534; background: #dcfce7; }
+/* Entre 901px y 1399px la tabla no cabe junto al formulario: el formulario pasa debajo para que las acciones no queden ocultas. */
+@media (min-width: 901px) and (max-width: 1399px) {
+  .reception-workspace .reception-management-grid { grid-template-columns: minmax(0, 1fr); }
+  .reception-workspace .reception-student-form { position: static; }
+}

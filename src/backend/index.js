@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import cors from 'cors'
 import express from 'express'
@@ -9,17 +9,48 @@ import { getClassHours } from './schedule.js'
 
 if (!process.env.TZ) process.env.TZ = 'America/Mexico_City'
 const app = express()
+app.disable('x-powered-by')
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY))
 const port = Number(process.env.PORT || 3000)
-const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'local-development-only-change-before-deploy')
-if (!jwtSecret) throw new Error('Configura JWT_SECRET antes de iniciar en producción.')
+const isProduction = process.env.NODE_ENV === 'production'
+// Nunca se usa una clave fija: si falta o es la del ejemplo, en producción no arranca y en desarrollo se genera una aleatoria.
+const PLACEHOLDER_SECRETS = new Set(['reemplaza-por-una-clave-aleatoria-larga', 'local-development-only-change-before-deploy'])
+let jwtSecret = process.env.JWT_SECRET || ''
+if (!jwtSecret || PLACEHOLDER_SECRETS.has(jwtSecret) || jwtSecret.length < 32) {
+  if (isProduction) throw new Error('Configura JWT_SECRET con una clave aleatoria de al menos 32 caracteres antes de iniciar en producción.')
+  jwtSecret = randomBytes(32).toString('hex')
+  console.warn('JWT_SECRET no está configurado (o es demasiado corto): se usa una clave temporal y las sesiones se cerrarán al reiniciar la API.')
+}
+const JWT_OPTIONS = { algorithm: 'HS256' }
 const bcryptRounds = 12
+const PASSWORD_MIN = 8
+const PASSWORD_MAX_BYTES = 72
+// Hash ficticio para que el login tarde lo mismo exista o no el usuario (evita enumerar matrículas por tiempo).
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(randomBytes(16).toString('hex'), bcryptRounds)
+// Huella del hash de contraseña dentro del token: al cambiar o restablecer la contraseña, los tokens anteriores dejan de valer.
+const passwordFingerprint = (hash) => createHash('sha256').update(String(hash)).digest('base64url').slice(0, 16)
+const signToken = (userId, role, passwordHash, expiresIn) => jwt.sign({ userId, role, pv: passwordFingerprint(passwordHash) }, jwtSecret, { ...JWT_OPTIONS, expiresIn })
+const passwordError = (password) => {
+  if (password.length < PASSWORD_MIN) return `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`
+  if (Buffer.byteLength(password) > PASSWORD_MAX_BYTES) return 'La contraseña es demasiado larga.'
+  return null
+}
 const allowedOrigins = new Set((process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',').map((origin) => origin.trim()))
 
 app.use(cors({ origin: (origin, callback) => {
   const localDevelopmentOrigin = process.env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin || '')
   callback(null, !origin || allowedOrigins.has(origin) || localDevelopmentOrigin)
 } }))
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Cache-Control': 'no-store',
+    'Cross-Origin-Resource-Policy': 'same-site',
+  })
+  next()
+})
 app.use(express.json({ limit: '100kb' }))
 
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next)
@@ -37,20 +68,55 @@ const loginLimiter = rateLimit({
   message: { message: 'Demasiados intentos de inicio de sesión. Inténtalo de nuevo en 15 minutos.', code: 'RATE_LIMIT_EXCEEDED' },
 })
 
+const limitMessage = (message) => ({ message, code: 'RATE_LIMIT_EXCEEDED' })
+// Límite general por IP. Es amplio porque en la academia muchos alumnos comparten la misma IP (wifi).
+const apiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: Number(process.env.RATE_LIMIT_MAX) || 1000,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: limitMessage('Demasiadas solicitudes. Espera unos minutos e inténtalo de nuevo.'),
+})
+// Acciones sensibles o que escriben en la base: más estrictas.
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: limitMessage('Demasiados intentos. Inténtalo de nuevo en 15 minutos.'),
+})
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: Number(process.env.RATE_LIMIT_WRITE_MAX) || 300,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET',
+  message: limitMessage('Demasiados cambios en poco tiempo. Espera unos minutos e inténtalo de nuevo.'),
+})
+app.use('/api', apiLimiter, writeLimiter)
+
 async function getBookableDateKey() {
   const [rows] = await pool.query("SELECT DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL IF(DAYOFWEEK(CURDATE()) = 7, 2, 1) DAY), '%Y-%m-%d') AS bookable")
   return rows[0].bookable
 }
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
   if (!token) return sendError(res, 401, 'Inicia sesión para continuar.', 'AUTH_REQUIRED')
+  let payload
   try {
-    req.auth = jwt.verify(token, jwtSecret)
-    next()
+    payload = jwt.verify(token, jwtSecret, { algorithms: [JWT_OPTIONS.algorithm] })
   } catch {
     return sendError(res, 401, 'Sesión inválida o expirada.', 'AUTH_INVALID')
   }
+  if (!['student', 'reception', 'tv'].includes(payload.role) || !Number.isInteger(payload.userId)) return sendError(res, 401, 'Sesión inválida o expirada.', 'AUTH_INVALID')
+  // Los tokens de TV pertenecen a la cuenta de recepción que los generó.
+  const [rows] = payload.role === 'student'
+    ? await pool.query('SELECT password FROM estudiantes WHERE id = ?', [payload.userId])
+    : await pool.query('SELECT password FROM recepcion WHERE id = ?', [payload.userId])
+  if (!rows[0] || passwordFingerprint(rows[0].password) !== payload.pv) return sendError(res, 401, 'Sesión inválida o expirada.', 'AUTH_INVALID')
+  req.auth = payload
+  next()
 }
 
 function requireRole(role) {
@@ -300,19 +366,21 @@ app.post('/api/auth/login', loginLimiter, asyncRoute(async (req, res) => {
   if (role === 'reception') {
     const [rows] = await pool.query('SELECT id, nombre, usuario, password FROM recepcion WHERE usuario = ? LIMIT 1', [matricula.trim()])
     const staff = rows[0]
-    if (!staff || !(await bcrypt.compare(password, staff?.password || ''))) return sendError(res, 401, 'Usuario o contraseña incorrectos.', 'INVALID_CREDENTIALS')
+    const validPassword = await bcrypt.compare(password, staff?.password || DUMMY_PASSWORD_HASH)
+    if (!staff || !validPassword) return sendError(res, 401, 'Usuario o contraseña incorrectos.', 'INVALID_CREDENTIALS')
     const user = { id: staff.id, name: staff.nombre, username: staff.usuario, role: 'reception' }
-    return res.json({ token: jwt.sign({ userId: staff.id, role: 'reception' }, jwtSecret, { expiresIn: '8h' }), user })
+    return res.json({ token: signToken(staff.id, 'reception', staff.password, '8h'), user })
   }
 
   const [rows] = await pool.query('SELECT id, matricula, nombre_completo, password, debe_cambiar_password FROM estudiantes WHERE matricula = ? LIMIT 1', [matricula.trim()])
   const student = rows[0]
-  if (!student || !(await bcrypt.compare(password, student?.password || ''))) return sendError(res, 401, 'Usuario o contraseña incorrectos.', 'INVALID_CREDENTIALS')
+  const validPassword = await bcrypt.compare(password, student?.password || DUMMY_PASSWORD_HASH)
+  if (!student || !validPassword) return sendError(res, 401, 'Usuario o contraseña incorrectos.', 'INVALID_CREDENTIALS')
   await ensureDemoSetup(student.id)
   const details = await getStudent(student.id)
   const user = serializeStudent(details)
   const reservations = await getStudentReservations(student.id)
-  return res.json({ token: jwt.sign({ userId: student.id, role: 'student' }, jwtSecret, { expiresIn: '8h' }), user, reservations })
+  return res.json({ token: signToken(student.id, 'student', student.password, '8h'), user, reservations })
 }))
 
 app.get('/api/auth/me', authenticate, asyncRoute(async (req, res) => {
@@ -327,12 +395,26 @@ app.get('/api/auth/me', authenticate, asyncRoute(async (req, res) => {
   return res.json({ user: serializeStudent(student), reservations: await getStudentReservations(student.id) })
 }))
 
-app.post('/api/auth/change-password', authenticate, requireRole('student'), asyncRoute(async (req, res) => {
+app.post('/api/auth/change-password', sensitiveLimiter, authenticate, requireRole('student'), asyncRoute(async (req, res) => {
   const password = String(req.body.password || '')
-  if (password.length < 8) return sendError(res, 400, 'La nueva contraseña debe tener al menos 8 caracteres.', 'PASSWORD_TOO_SHORT')
+  const invalid = passwordError(password)
+  if (invalid) return sendError(res, 400, invalid, 'INVALID_PASSWORD')
+  const [rows] = await pool.query('SELECT password, debe_cambiar_password FROM estudiantes WHERE id = ?', [req.auth.userId])
+  if (!rows[0]) return sendError(res, 401, 'La cuenta ya no está disponible.', 'ACCOUNT_NOT_FOUND')
+  // Fuera del cambio obligatorio de contraseña temporal, se exige la contraseña actual (un token robado no basta).
+  if (!rows[0].debe_cambiar_password && !(await bcrypt.compare(String(req.body.currentPassword || ''), rows[0].password))) {
+    return sendError(res, 400, 'La contraseña actual no es correcta.', 'INVALID_CURRENT_PASSWORD')
+  }
   const hashedPassword = await bcrypt.hash(password, bcryptRounds)
   await pool.query('UPDATE estudiantes SET password = ?, debe_cambiar_password = FALSE WHERE id = ?', [hashedPassword, req.auth.userId])
-  res.json({ message: 'Contraseña actualizada correctamente.' })
+  // El token anterior queda invalidado; se entrega uno nuevo para no cerrar la sesión actual.
+  const student = await getStudent(req.auth.userId)
+  res.json({
+    message: 'Contraseña actualizada correctamente.',
+    token: signToken(req.auth.userId, 'student', hashedPassword, '8h'),
+    user: serializeStudent(student),
+    reservations: await getStudentReservations(req.auth.userId),
+  })
 }))
 
 app.get('/api/student/profile', authenticate, requireRole('student'), asyncRoute(async (req, res) => {
@@ -344,6 +426,7 @@ app.get('/api/student/profile', authenticate, requireRole('student'), asyncRoute
 app.patch('/api/student/profile', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
   const name = String(req.body.name || '').trim()
   if (!name) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
+  if (name.length > 150) return sendError(res, 400, 'El nombre debe tener como máximo 150 caracteres.', 'NAME_TOO_LONG')
   await pool.query('UPDATE estudiantes SET nombre_completo = ? WHERE id = ?', [name, req.auth.userId])
   const student = await getStudent(req.auth.userId)
   res.json({ user: serializeStudent(student) })
@@ -384,6 +467,7 @@ app.get('/api/student/availability', authenticate, requireStudentReady, asyncRou
 app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
   const { slots } = req.body
   if (!Array.isArray(slots) || slots.length === 0) return sendError(res, 400, 'Selecciona al menos un horario.', 'SLOTS_REQUIRED')
+  if (slots.length > 14) return sendError(res, 400, 'Selecciona como máximo 14 horarios por solicitud.', 'TOO_MANY_SLOTS')
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -513,7 +597,8 @@ app.delete('/api/reservations/:id', authenticate, requireStudentReady, asyncRout
 }))
 
 app.delete('/api/reservations', authenticate, requireStudentReady, asyncRoute(async (req, res) => {
-  const ids = [...new Set((req.body.ids || []).map(Number))].filter((id) => Number.isInteger(id) && id > 0)
+  if (!Array.isArray(req.body.ids) || req.body.ids.length > 50) return sendError(res, 400, 'Selecciona reservas válidas.', 'INVALID_RESERVATIONS')
+  const ids = [...new Set(req.body.ids.map(Number))].filter((id) => Number.isInteger(id) && id > 0)
   if (!ids.length) return sendError(res, 400, 'Selecciona reservas válidas.', 'INVALID_RESERVATIONS')
   const placeholders = ids.map(() => '?').join(', ')
   const [rows] = await pool.query(
@@ -620,7 +705,8 @@ app.put('/api/reception/daily-room-assignments/:date', authenticate, requireRole
 }))
 
 app.post('/api/reception/tv-token', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
-  const token = jwt.sign({ userId: req.auth.userId, role: 'tv' }, jwtSecret, { expiresIn: '16h' })
+  const [rows] = await pool.query('SELECT password FROM recepcion WHERE id = ?', [req.auth.userId])
+  const token = signToken(req.auth.userId, 'tv', rows[0].password, '16h')
   res.json({ token })
 }))
 
@@ -715,6 +801,7 @@ app.post('/api/reception/students', authenticate, requireRole('reception'), asyn
   if (!Number.isInteger(weeklyHours) || weeklyHours < 1) return sendError(res, 400, 'Las horas semanales deben ser un número entero mayor o igual a 1.', 'INVALID_WEEKLY_HOURS')
   if (!isValidDateKey(contractEnd)) return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
   if (!matricula || !name) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
+  if (req.body.password !== undefined && passwordError(String(req.body.password))) return sendError(res, 400, passwordError(String(req.body.password)), 'INVALID_PASSWORD')
   const temporaryPassword = String(req.body.password || randomBytes(9).toString('base64url'))
   const password = await bcrypt.hash(temporaryPassword, bcryptRounds)
   const connection = await pool.getConnection()
@@ -746,7 +833,7 @@ app.post('/api/reception/students', authenticate, requireRole('reception'), asyn
   res.status(201).json({ student: serializeStudent(student), temporaryPassword })
 }))
 
-app.post('/api/reception/students/:id/reset-password', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+app.post('/api/reception/students/:id/reset-password', sensitiveLimiter, authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const temporaryPassword = randomBytes(9).toString('base64url')
   const password = await bcrypt.hash(temporaryPassword, bcryptRounds)
   const [result] = await pool.query(
@@ -901,6 +988,8 @@ app.use((error, req, res, _next) => {
     return sendError(res, 409, message, 'DUPLICATE_RECORD')
   }
   if (String(error.code || '').startsWith('ER_ROW_IS_REFERENCED')) return sendError(res, 409, 'No se puede eliminar este registro porque tiene datos asociados.', 'RECORD_IN_USE')
+  if (['ER_DATA_TOO_LONG', 'ER_TRUNCATED_WRONG_VALUE', 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD', 'WARN_DATA_TRUNCATED', 'ER_WARN_DATA_OUT_OF_RANGE'].includes(error.code)) return sendError(res, 400, 'Uno de los campos es demasiado largo o tiene un formato inválido.', 'INVALID_FIELD')
+  if (error.type === 'entity.parse.failed' || error.type === 'entity.too.large') return sendError(res, error.status || 400, 'La solicitud no tiene un formato válido.', 'INVALID_BODY')
   const status = error.status || 500
   if (status >= 500) {
     console.error('API request failed', {

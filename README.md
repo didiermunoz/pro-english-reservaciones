@@ -49,6 +49,13 @@ Sin el modo demo, inicia sesión en Recepción y registra al menos un salón y u
 
 El login solicita tipo de cuenta, identificador y contraseña. El servidor compara bcrypt y emite JWT con rol. Una contraseña temporal obliga a completar `/actualizar-password`; las rutas de estudiante y recepción están protegidas por rol. Para crear estudiantes desde Recepción, el sistema genera una contraseña temporal y solo la presenta una vez.
 
+## Seguridad
+- **Producción:** define `NODE_ENV=production`. La API no arranca si `JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 caracteres.
+- **Base de datos:** crea un usuario con permisos mínimos con `database/app-user.sql` (solo `SELECT, INSERT, UPDATE, DELETE`) y úsalo en `DB_USER`. Las migraciones se ejecutan con un usuario administrador.
+- **Sesiones:** los tokens incluyen una huella de la contraseña; al cambiarla o restablecerla desde Recepción, las sesiones anteriores dejan de ser válidas.
+- **Límites de peticiones:** login (10 intentos fallidos / 15 min), cambio y restablecimiento de contraseña (10 / 15 min), escrituras (`RATE_LIMIT_WRITE_MAX`, 300 / 15 min) y general (`RATE_LIMIT_MAX`, 1000 / 5 min) por IP. Detrás de un proxy configura `TRUST_PROXY=1` para que se use la IP real.
+- **Nunca subas `.env`** al repositorio.
+
 ## API
 
 - `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/change-password`

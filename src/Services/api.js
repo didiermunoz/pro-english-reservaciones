@@ -17,7 +17,7 @@ async function request(path, options = {}, token) {
 export const api = {
   login: (credentials) => request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   me: (token) => request('/auth/me', {}, token),
-  changePassword: (token, password) => request('/auth/change-password', { method: 'POST', body: JSON.stringify({ password }) }, token),
+  changePassword: (token, password, currentPassword) => request('/auth/change-password', { method: 'POST', body: JSON.stringify({ password, currentPassword }) }, token),
   updateProfile: (token, updates) => request('/student/profile', { method: 'PATCH', body: JSON.stringify(updates) }, token),
   availability: (token, dates) => request(`/student/availability?dates=${encodeURIComponent(dates.join(','))}`, {}, token),
   createReservations: (token, slots) => request('/reservations', { method: 'POST', body: JSON.stringify({ slots }) }, token),

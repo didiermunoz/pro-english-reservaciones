@@ -49,6 +49,13 @@ Sin el modo demo, inicia sesión en Recepción y registra al menos un salón y u
 
 El login solicita tipo de cuenta, identificador y contraseña. El servidor compara bcrypt y emite JWT con rol. Una contraseña temporal obliga a completar `/actualizar-password`; las rutas de estudiante y recepción están protegidas por rol. Para crear estudiantes desde Recepción, el sistema genera una contraseña temporal y solo la presenta una vez.
 
+## Rosetta
+Rosetta es una clase especial que el alumno reserva por su cuenta desde la agenda (botón **Clase / Rosetta**). Aplica una vez `database/migration-rosetta.sql` con un usuario administrador de MySQL.
+- **Ilimitado** (matrícula menor a 8882): Rosetta sin límite propio; cada hora se descuenta de sus horas semanales.
+- **Paquete** (estudiantes nuevos que aceptan Rosetta al registrarse): 24 horas en total, aparte de sus horas de clase. Recepción puede ajustar el total al editar al estudiante.
+- **Sin Rosetta**: no ve el botón.
+- El cupo por hora es el *Aforo máximo* del salón marcado como **Salón de Rosetta** en Recepción > Salones. Ese salón no aparece en la asignación diaria ni en la pantalla TV.
+
 ## Seguridad
 - **Producción:** define `NODE_ENV=production`. La API no arranca si `JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 caracteres.
 - **Base de datos:** crea un usuario con permisos mínimos con `database/app-user.sql` (solo `SELECT, INSERT, UPDATE, DELETE`) y úsalo en `DB_USER`. Las migraciones se ejecutan con un usuario administrador.

@@ -31,7 +31,12 @@ export default function HomePage({ onNavigate }) {
   const [availabilityError, setAvailabilityError] = useState('')
   const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [bookingType, setBookingType] = useState('Clase')
   const studentHours = Number(currentStudent?.contract?.weeklyHours || 0)
+  const rosettaPlan = currentStudent?.rosetta?.plan || 'ninguno'
+  const hasRosetta = rosettaPlan === 'ilimitado' || rosettaPlan === 'paquete'
+  // Rosetta 'ilimitado' se descuenta de las horas semanales; 'paquete' tiene su propio contador.
+  const countsWeekly = (type) => type !== 'Rosetta' || rosettaPlan === 'ilimitado'
 
   // Fechas derivadas
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => {
@@ -64,7 +69,7 @@ export default function HomePage({ onNavigate }) {
         const slots = payload.slots || []
         setAvailability(slots)
         setAvailabilityError('')
-        setSelectedSlots((current) => current.filter((selected) => slots.some((slot) => slot.dateKey === selected.dateKey && slot.hour === selected.hour && slot.available && !slot.reservedByStudent)))
+        setSelectedSlots((current) => current.filter((selected) => slots.some((slot) => slot.dateKey === selected.dateKey && slot.hour === selected.hour && (selected.type === 'Rosetta' ? slot.rosettaAvailable : slot.available) && !slot.reservedByStudent)))
       })
       .catch((error) => { if (active) setAvailabilityError(error.message) })
     refreshAvailability()
@@ -86,11 +91,16 @@ export default function HomePage({ onNavigate }) {
   const weekReservations = useMemo(() => reservations.filter((reservation) => (
     ['Confirmada', 'Completada'].includes(reservation.status) && reservation.dateKey >= weekStartKey && reservation.dateKey < weekEndKey
   )), [reservations, weekStartKey, weekEndKey])
-  const bookedHours = weekReservations.reduce((total, reservation) => total + reservation.endHour - reservation.startHour, 0)
+  const bookedHours = weekReservations.filter((reservation) => countsWeekly(reservation.type)).reduce((total, reservation) => total + reservation.endHour - reservation.startHour, 0)
   const scheduledSlotIds = useMemo(() => new Set(weekReservations.flatMap((reservation) => (
     Array.from({ length: reservation.endHour - reservation.startHour }, (_, index) => `${reservation.dateKey}-${reservation.startHour + index}`)
   ))), [weekReservations])
-  const totalScheduledHours = bookedHours + selectedSlots.length
+  const selectedWeeklyHours = selectedSlots.filter((slot) => countsWeekly(slot.type)).length
+  const selectedRosettaHours = selectedSlots.filter((slot) => slot.type === 'Rosetta').length
+  const totalScheduledHours = bookedHours + selectedWeeklyHours
+  const weeklyRemaining = Math.max(0, studentHours - totalScheduledHours)
+  const rosettaRemaining = rosettaPlan === 'paquete' ? Math.max(0, (currentStudent.rosetta.remainingHours ?? 0) - selectedRosettaHours) : null
+  const typeLimitReached = (type) => (countsWeekly(type) && weeklyRemaining <= 0) || (type === 'Rosetta' && rosettaPlan === 'paquete' && rosettaRemaining <= 0)
   const completedClasses = useMemo(() => reservations.filter((item) => item.status === 'Completada').map((item) => ({
     id: item.id,
     dateKey: item.dateKey,
@@ -100,13 +110,24 @@ export default function HomePage({ onNavigate }) {
   const availabilityBySlot = useMemo(() => new Map(availability.map((item) => [`${item.dateKey}-${item.hour}`, item])), [availability])
 
   const toggleSlot = (slot) => {
-    if (!slot || availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)?.available !== true || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || confirmed || studentHours === 0) return
-    setSelectedSlots((currentSlots) => {
-      if (currentSlots.some((currentSlot) => currentSlot.id === slot.id)) {
-        return currentSlots.filter((currentSlot) => currentSlot.id !== slot.id)
-      }
-      return currentSlots.length < Math.max(0, studentHours - bookedHours) ? [...currentSlots, slot] : currentSlots
-    })
+    if (!slot || confirmed || scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`)) return
+    if (selectedSlots.some((currentSlot) => currentSlot.id === slot.id)) {
+      setSelectedSlots((currentSlots) => currentSlots.filter((currentSlot) => currentSlot.id !== slot.id))
+      return
+    }
+    const slotAvailability = availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)
+    const isOpen = bookingType === 'Rosetta' ? slotAvailability?.rosettaAvailable === true : slotAvailability?.available === true
+    if (!isOpen || typeLimitReached(bookingType) || (bookingType === 'Rosetta' && !hasRosetta)) return
+    setSelectedSlots((currentSlots) => [...currentSlots, { ...slot, type: bookingType }])
+  }
+  // Tipo (Clase o Rosetta) con que está reservada o elegida una hora, para mostrarlo en la lista.
+  const getSlotType = (slot) => {
+    if (!slot) return null
+    const key = `${slot.dateKey}-${slot.hour}`
+    return selectedSlots.find((selected) => selected.id === slot.id)?.type
+      || weekReservations.find((reservation) => reservation.dateKey === slot.dateKey && reservation.startHour <= slot.hour && reservation.endHour > slot.hour)?.type
+      || availabilityBySlot.get(key)?.reservedType
+      || null
   }
 
   const getSlotStatus = (slot) => {
@@ -114,9 +135,9 @@ export default function HomePage({ onNavigate }) {
     const slotAvailability = availabilityBySlot.get(`${slot.dateKey}-${slot.hour}`)
     if (!slotAvailability) return 'unavailable'
     if (scheduledSlotIds.has(`${slot.dateKey}-${slot.hour}`) || slotAvailability.reservedByStudent) return 'booked'
-    if (!slotAvailability.available) return 'full'
     if (selectedSlots.some((selectedSlot) => selectedSlot.id === slot.id)) return 'selected'
-    if (totalScheduledHours >= studentHours) return 'limit'
+    if (!(bookingType === 'Rosetta' ? slotAvailability.rosettaAvailable : slotAvailability.available)) return 'full'
+    if (typeLimitReached(bookingType)) return 'limit'
     return 'available'
   }
 
@@ -138,14 +159,14 @@ export default function HomePage({ onNavigate }) {
   return <div className="student-portal">
     <StudentNavbar onNavigate={onNavigate} />
     <main className="student-main">
-      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} />
+      <ContractHero student={currentStudent} selectedCount={totalScheduledHours} studentHours={studentHours} rosettaRemaining={rosettaRemaining} />
       {availabilityError && <p className="schedule-closed" role="alert">{availabilityError}</p>}
       {notice && <p className="profile-alert" role="status">{notice}</p>}
       {!currentStudent.contract && <p className="schedule-closed" role="status">No tienes un contrato activo asociado a tu cuenta.</p>}
-      <ScheduleSection confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} onSlotToggle={toggleSlot} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
+      <ScheduleSection bookingType={bookingType} confirmed={confirmed} formatHour={formatHour} getSlotStatus={getSlotStatus} getSlotType={getSlotType} hasRosetta={hasRosetta} onBookingTypeChange={setBookingType} onSlotToggle={toggleSlot} rosettaPlan={rosettaPlan} rosettaRemaining={rosettaRemaining} scheduleHours={scheduleHours} selectableDates={selectableDates} slotsByDate={slotsByDate} />
       <WeekProgress completedClasses={completedClasses} weekDates={weekDates} />
     </main> 
-    <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} loading={loading} />
+    <SelectionActionBar confirmed={confirmed} formatHour={formatHour} onConfirm={confirmSchedule} selectedSlots={selectedSlots} studentHours={Math.max(0, studentHours - bookedHours)} rosettaRemaining={rosettaRemaining} loading={loading} />
     <SchoolFooter /> 
   </div> 
 }

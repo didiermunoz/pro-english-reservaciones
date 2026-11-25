@@ -51,3 +51,7 @@
     font-size: 16px;
   }
 }
+/* Rosetta */
+.stat-card-rosetta { border-top: 4px solid #7c3aed; }
+.stat-card-rosetta .stat-chip { color: #6d28d9; background: #f5f3ff; }
+.stat-card-rosetta .progress-fill { background: #7c3aed; }

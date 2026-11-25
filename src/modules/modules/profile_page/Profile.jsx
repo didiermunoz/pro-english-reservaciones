@@ -56,8 +56,10 @@ export const Profile = () => {
   }, [])
 
   const activeReservations = reservations.filter((item) => item.status === 'Confirmada')
+  const rosetta = currentStudent.rosetta || { plan: 'ninguno' }
   const weeklyHoursUsed = reservations
     .filter((item) => ['Confirmada', 'Completada'].includes(item.status))
+    .filter((item) => item.type !== 'Rosetta' || rosetta.plan === 'ilimitado')
     .filter((item) => item.dateKey >= currentWeek.start && item.dateKey < currentWeek.end)
     .reduce((total, item) => total + item.endHour - item.startHour, 0)
   const upcomingClasses = groupReservations(activeReservations)
@@ -129,6 +131,13 @@ export const Profile = () => {
           <p className="stat-subtext">{weeklyLimit ? `Puedes agendar ${Math.max(0, weeklyLimit - weeklyHoursUsed)} hrs más esta semana` : 'No hay un contrato activo asociado.'}</p>
           <div className="progress-bar"><div className={`progress-fill ${weeklyPercent >= 100 ? 'warning' : ''}`} style={{ width: `${weeklyPercent}%` }} /></div>
         </div>
+        {rosetta.plan === 'paquete' && <div className="stat-card stat-card-rosetta">
+          <div className="stat-header"><h3>Horas de Rosetta</h3><span className="stat-chip">Rosetta</span></div>
+          <div className="stat-value">{rosetta.usedHours} <span>/ {rosetta.totalHours} hrs</span></div>
+          <p className="stat-subtext">{rosetta.remainingHours > 0 ? `Te quedan ${rosetta.remainingHours} hrs de Rosetta (aparte de tus clases)` : 'Ya usaste todas tus horas de Rosetta.'}</p>
+          <div className="progress-bar"><div className="progress-fill" style={{ width: `${rosetta.totalHours ? Math.min((rosetta.usedHours / rosetta.totalHours) * 100, 100) : 0}%` }} /></div>
+        </div>}
+        {rosetta.plan === 'ilimitado' && <p className="stat-subtext">Rosetta ilimitado: cada hora de Rosetta se descuenta de tus horas semanales.</p>}
       </section>
 
       <div className="profile-layout">

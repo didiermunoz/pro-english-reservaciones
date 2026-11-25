@@ -12,8 +12,14 @@ const todayKey = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
-const emptyForm = { matricula: '', name: '', level: '', modality: '', contractEnd: '', weeklyHours: 6 }
-const emptyRoomForm = { name: '', morningTeacher: '', afternoonTeacher: '', capacity: 10 }
+const emptyForm = { matricula: '', name: '', level: '', modality: '', contractEnd: '', weeklyHours: 6, rosetta: '', rosettaPlan: '', rosettaTotalHours: 24 }
+const emptyRoomForm = { name: '', morningTeacher: '', afternoonTeacher: '', capacity: 10, isRosetta: false }
+const ROSETTA_PLAN_LABELS = { ilimitado: 'Ilimitado (usa horas semanales)', paquete: 'Paquete de horas', ninguno: 'No toma Rosetta' }
+const formatRosetta = (rosetta) => {
+  if (rosetta?.plan === 'ilimitado') return 'Ilimitado'
+  if (rosetta?.plan === 'paquete') return `${rosetta.usedHours}/${rosetta.totalHours} h`
+  return 'No'
+}
 const emptyLessonForm = { order: '', title: '', type: 'Leccion' }
 
 export default function Reception() {
@@ -115,6 +121,9 @@ export default function Reception() {
       modality: ['Presencial', 'En Linea'].includes(student.contract?.modality) ? student.contract.modality : '',
       contractEnd: student.contract?.endDate || '',
       weeklyHours: student.contract?.weeklyHours || 6,
+      rosetta: '',
+      rosettaPlan: student.rosetta?.plan || 'ninguno',
+      rosettaTotalHours: student.rosetta?.totalHours ?? 24,
     })
     setNotice('')
     setTemporaryPassword('')
@@ -135,6 +144,10 @@ export default function Reception() {
       setNotice('Selecciona un nivel válido.')
       return
     }
+    if (!editingId && !form.rosetta) {
+      setNotice('Indica si el estudiante toma Rosetta.')
+      return
+    }
     const hasContractDetails = Boolean(form.modality || form.contractEnd)
     const studentHasContract = Boolean(students.find((student) => student.id === editingId)?.contract)
     if (Boolean(form.modality) !== Boolean(form.contractEnd) || ((!editingId || studentHasContract) && !hasContractDetails)) {
@@ -148,10 +161,12 @@ export default function Reception() {
       const studentData = { matricula: form.matricula.trim(), name: form.name.trim(), level: form.level, weeklyHours: Number(form.weeklyHours) }
       if (form.modality && form.contractEnd) Object.assign(studentData, { modality: form.modality, contractEnd: form.contractEnd })
       if (editingId) {
+        studentData.rosettaPlan = form.rosettaPlan
+        if (form.rosettaPlan === 'paquete') studentData.rosettaTotalHours = Number(form.rosettaTotalHours)
         await api.updateStudent(token, editingId, studentData)
         setNotice('Datos del estudiante actualizados.')
       } else {
-        const result = await api.createStudent(token, studentData)
+        const result = await api.createStudent(token, { ...studentData, rosetta: form.rosetta })
         setTemporaryPassword(result.temporaryPassword)
         setNotice('Estudiante registrado. Entrega esta contraseña temporal para su primer acceso:')
       }
@@ -213,7 +228,7 @@ export default function Reception() {
 
   const editRoom = (room) => {
     setEditingRoomId(room.id)
-    setRoomForm({ name: room.name, morningTeacher: room.morningTeacher, afternoonTeacher: room.afternoonTeacher, capacity: room.capacity })
+    setRoomForm({ name: room.name, morningTeacher: room.morningTeacher, afternoonTeacher: room.afternoonTeacher, capacity: room.capacity, isRosetta: Boolean(room.isRosetta) })
   }
 
   const saveRoom = async (event) => {
@@ -324,7 +339,7 @@ export default function Reception() {
         {tab === 'students' ? <div className="reception-management-grid">
           <section className="reception-list-section">
             <div className="reception-section-heading"><h2>Estudiantes registrados</h2><span>{filteredStudents.length} resultados</span></div>
-            {loading ? <p className="reception-empty">Cargando estudiantes...</p> : filteredStudents.length === 0 ? <p className="reception-empty">No hay estudiantes que coincidan con la búsqueda.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Matrícula</th><th>Nombre completo</th><th>Nivel</th><th>Contrato</th><th>Vencimiento</th><th>Reservas activas</th><th>Acciones</th></tr></thead><tbody>
+            {loading ? <p className="reception-empty">Cargando estudiantes...</p> : filteredStudents.length === 0 ? <p className="reception-empty">No hay estudiantes que coincidan con la búsqueda.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Matrícula</th><th>Nombre completo</th><th>Nivel</th><th>Contrato</th><th>Vencimiento</th><th>Rosetta</th><th>Reservas activas</th><th>Acciones</th></tr></thead><tbody>
               {filteredStudents.map((student) => <tr key={student.id}>
                 <td>{student.matricula}</td><td>{student.name}</td>
                 <td>{student.level ? <><span className="reception-level-badge" data-level={student.level} title={getLevel(student.level)?.name}>{student.level}</span> <small>{getLevel(student.level)?.name}</small></> : 'Sin asignar'}</td>
@@ -334,6 +349,7 @@ export default function Reception() {
                   const statusText = expiry.status === 'expired' ? `Vencido hace ${Math.abs(expiry.days)} d` : expiry.status === 'soon' ? expiry.days === 0 ? 'Vence hoy' : `Vence en ${expiry.days} d` : 'Vigente'
                   return <>{new Date(`${student.contract.endDate}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} <span className="reception-expiry-badge" data-status={expiry.status}>{statusText}</span></>
                 })() : '—'}</td>
+                <td>{formatRosetta(student.rosetta)}</td>
                 <td>{student.activeReservations}</td>
                 <td className="reception-row-actions"><button type="button" onClick={() => startEdit(student)}>Editar</button><button type="button" onClick={() => { setNotice(''); setTemporaryPassword(''); setPendingPasswordReset(student) }}>Restablecer contraseña</button><button type="button" className="danger" onClick={() => setPendingDelete(student)}>Eliminar</button></td>
               </tr>)}
@@ -348,6 +364,11 @@ export default function Reception() {
             <label htmlFor="student-weekly-hours">Horas semanales<input id="student-weekly-hours" type="number" min="1" step="1" value={form.weeklyHours} onChange={(event) => setForm({ ...form, weeklyHours: event.target.value })} required /></label>
             <label htmlFor="student-modality">Modalidad<select id="student-modality" value={form.modality} onChange={(event) => setForm({ ...form, modality: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)}><option value="" disabled>Selecciona modalidad</option><option value="Presencial">Presencial</option><option value="En Linea">En línea</option></select></label>
             <label htmlFor="student-contract-end">Vencimiento de contrato<input id="student-contract-end" type="date" value={form.contractEnd} onChange={(event) => setForm({ ...form, contractEnd: event.target.value })} required={!editingId || Boolean(students.find((student) => student.id === editingId)?.contract)} /></label>
+            {!editingId ? <label htmlFor="student-rosetta">¿Toma Rosetta? (24 horas aparte de sus clases)<select id="student-rosetta" value={form.rosetta} onChange={(event) => setForm({ ...form, rosetta: event.target.value })} required><option value="" disabled>Selecciona una opción</option><option value="si">Sí</option><option value="no">No</option></select></label>
+              : <>
+                <label htmlFor="student-rosetta-plan">Rosetta<select id="student-rosetta-plan" value={form.rosettaPlan} onChange={(event) => setForm({ ...form, rosettaPlan: event.target.value })}>{Object.entries(ROSETTA_PLAN_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                {form.rosettaPlan === 'paquete' && <label htmlFor="student-rosetta-hours">Horas totales de Rosetta<input id="student-rosetta-hours" type="number" min="0" step="1" value={form.rosettaTotalHours} onChange={(event) => setForm({ ...form, rosettaTotalHours: event.target.value })} required /></label>}
+              </>}
             {!editingId && <p>Se generará una contraseña temporal segura; se mostrará una sola vez al guardar.</p>}
             <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Registrar estudiante'}</button>
             {editingId && <button className="secondary" type="button" onClick={resetForm}>Cancelar edición</button>}
@@ -372,8 +393,8 @@ export default function Reception() {
         </section> : tab === 'rooms' ? <div className="reception-management-grid">
           <section className="reception-list-section">
             <div className="reception-section-heading"><h2>Salones registrados</h2><span>{rooms.length} resultados</span></div>
-            {loading ? <p className="reception-empty">Cargando salones...</p> : rooms.length === 0 ? <p className="reception-empty">No hay salones registrados.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Salón</th><th>Profesor mañana</th><th>Profesor tarde</th><th>Aforo</th><th>Acciones</th></tr></thead><tbody>
-              {rooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.morningTeacher}</td><td>{room.afternoonTeacher}</td><td>{room.capacity}</td><td className="reception-row-actions"><button type="button" onClick={() => editRoom(room)}>Editar</button><button type="button" className="danger" onClick={() => setPendingRoomDelete(room)}>Eliminar</button></td></tr>)}
+            {loading ? <p className="reception-empty">Cargando salones...</p> : rooms.length === 0 ? <p className="reception-empty">No hay salones registrados.</p> : <div className="reception-table-wrap"><table className="reception-table"><thead><tr><th>Salón</th><th>Profesor mañana</th><th>Profesor tarde</th><th>Aforo</th><th>Tipo</th><th>Acciones</th></tr></thead><tbody>
+              {rooms.map((room) => <tr key={room.id}><td>{room.name}</td><td>{room.morningTeacher}</td><td>{room.afternoonTeacher}</td><td>{room.capacity}</td><td>{room.isRosetta ? <span className="reception-rosetta-badge">Rosetta</span> : 'Clases'}</td><td className="reception-row-actions"><button type="button" onClick={() => editRoom(room)}>Editar</button><button type="button" className="danger" onClick={() => setPendingRoomDelete(room)}>Eliminar</button></td></tr>)}
             </tbody></table></div>}
           </section>
           <form className="reception-student-form" onSubmit={saveRoom}>
@@ -381,7 +402,8 @@ export default function Reception() {
             <label htmlFor="room-name">Nombre<input id="room-name" value={roomForm.name} onChange={(event) => setRoomForm({ ...roomForm, name: event.target.value })} required /></label>
             <label htmlFor="room-morning">Profesor turno mañana<input id="room-morning" value={roomForm.morningTeacher} onChange={(event) => setRoomForm({ ...roomForm, morningTeacher: event.target.value })} required /></label>
             <label htmlFor="room-afternoon">Profesor turno tarde<input id="room-afternoon" value={roomForm.afternoonTeacher} onChange={(event) => setRoomForm({ ...roomForm, afternoonTeacher: event.target.value })} required /></label>
-            <label htmlFor="room-capacity">Aforo máximo<input id="room-capacity" type="number" min="1" value={roomForm.capacity} onChange={(event) => setRoomForm({ ...roomForm, capacity: event.target.value })} required /></label>
+            <label htmlFor="room-capacity">{roomForm.isRosetta ? 'Lugares de Rosetta por hora' : 'Aforo máximo'}<input id="room-capacity" type="number" min="1" value={roomForm.capacity} onChange={(event) => setRoomForm({ ...roomForm, capacity: event.target.value })} required /></label>
+            <label className="reception-checkbox" htmlFor="room-rosetta"><input id="room-rosetta" type="checkbox" checked={roomForm.isRosetta} onChange={(event) => setRoomForm({ ...roomForm, isRosetta: event.target.checked })} /> Es el salón de Rosetta</label>
             <button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingRoomId ? 'Guardar cambios' : 'Registrar salón'}</button>
             {editingRoomId && <button className="secondary" type="button" onClick={() => { setEditingRoomId(null); setRoomForm(emptyRoomForm) }}>Cancelar edición</button>}
           </form>

@@ -1,6 +1,6 @@
 import CurrentDateTime from './CurrentDateTime'
 
-export default function ContractHero({ student, selectedCount, studentHours }) {
+export default function ContractHero({ student, selectedCount, studentHours, rosettaRemaining }) {
   const remainingHours = Math.max(0, studentHours - selectedCount)
   const progress = studentHours > 0 ? Math.min(selectedCount / studentHours, 1) : 0
   const circumference = 2 * Math.PI * 34
@@ -30,6 +30,8 @@ export default function ContractHero({ student, selectedCount, studentHours }) {
         </div>
         <p className="hours-remaining">Te quedan {remainingHours} h para reservar esta semana</p>
       </div>
+      {student?.rosetta?.plan === 'paquete' && <p className="rosetta-remaining">Rosetta: te quedan <strong>{rosettaRemaining ?? student.rosetta.remainingHours} de {student.rosetta.totalHours} h</strong> (no se descuentan de tus clases)</p>}
+      {student?.rosetta?.plan === 'ilimitado' && <p className="rosetta-remaining">Rosetta ilimitado: cada hora se descuenta de tus horas de la semana</p>}
     </section>
   )
 }

@@ -2399,3 +2399,27 @@ a {
     transition-duration: .01ms !important;
   }
 }
+/* === Rosetta === */
+.booking-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 18px;
+}
+.booking-type-toggle { display: inline-flex; padding: 4px; border: 1px solid var(--border-color); border-radius: 999px; background: var(--bg-light); }
+.booking-type-toggle button { min-width: 112px; min-height: 44px; padding: 8px 18px; border: 0; border-radius: 999px; color: var(--text-muted); background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.booking-type-toggle button.active { color: #fff; background: var(--primary-blue); box-shadow: var(--shadow-sm); }
+.booking-type-toggle button.rosetta.active { background: #7c3aed; }
+.booking-type-toggle button:focus-visible { outline: 3px solid #a78bfa; outline-offset: 2px; }
+.booking-type-hint { margin: 0; color: var(--text-muted); font-size: .9rem; }
+.rosetta-remaining { margin: 12px 0 0; color: #6d28d9; font-size: .95rem; font-weight: 600; }
+.time-slot.selected.is-rosetta,.time-slot.booked.is-rosetta { background: #ede9fe; box-shadow: inset 5px 0 0 #7c3aed; }
+.selection-list .is-rosetta { border-color: #c4b5fd; color: #6d28d9; background: #f5f3ff; }
+@media (max-width: 700px) {
+  .time-slot.selected.is-rosetta { color: #fff; background: linear-gradient(120deg, #7c3aed, #9333ea); box-shadow: 0 8px 20px rgba(124, 58, 237, .22); }
+  .time-slot.booked.is-rosetta { color: #6d28d9; background: #f5f3ff; box-shadow: none; }
+  .booking-type { margin: 4px 0 14px; }
+  .booking-type-toggle { display: flex; width: 100%; }
+  .booking-type-toggle button { flex: 1; min-width: 0; }
+}

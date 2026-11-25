@@ -50,7 +50,7 @@ async function seedDemoData() {
     if (!students.length) throw new Error('No hay estudiantes registrados para preparar reservas de demostración.')
 
     let [rooms] = await connection.query(
-      'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones ORDER BY id',
+      'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones WHERE es_rosetta = FALSE ORDER BY id',
     )
     if (!rooms.length) {
       await connection.query(
@@ -58,7 +58,7 @@ async function seedDemoData() {
          VALUES ('Salón Demo', 'Instructor de mañana', 'Instructor de tarde', 10)`,
       )
       const [createdRooms] = await connection.query(
-        'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones ORDER BY id',
+        'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones WHERE es_rosetta = FALSE ORDER BY id',
       )
       rooms = createdRooms
     }
@@ -73,7 +73,7 @@ async function seedDemoData() {
       )
     }
     rooms = (await connection.query(
-      'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones ORDER BY id',
+      'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones WHERE es_rosetta = FALSE ORDER BY id',
     ))[0]
     const numberedRooms = rooms
       .filter((room) => /^Salón [1-8]$/.test(room.name))

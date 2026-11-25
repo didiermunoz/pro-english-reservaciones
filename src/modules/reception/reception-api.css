@@ -353,3 +353,7 @@ body:has(.reception-workspace) {
   .reception-workspace .reception-management-grid { grid-template-columns: minmax(0, 1fr); }
   .reception-workspace .reception-student-form { position: static; }
 }
+/* Rosetta */
+.reception-rosetta-badge { display: inline-block; padding: 2px 8px; border: 1px solid #c4b5fd; border-radius: 999px; color: #6d28d9; background: #f5f3ff; font-size: .72rem; font-weight: 800; }
+.reception-workspace .reception-checkbox { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.reception-workspace .reception-checkbox input { width: 18px; height: 18px; min-height: 0; margin: 0; }

@@ -59,6 +59,11 @@ const LEVEL_CODES = ['S', 'B', 'I', 'IA', 'A']
 const CANCELLATION_MINUTES = 60
 const CONTRACT_MODALITIES = ['Presencial', 'En Linea']
 const DEFAULT_WEEKLY_HOURS = 6
+const RESERVATION_TYPES = ['Clase', 'Rosetta']
+const ROSETTA_PLANS = ['ilimitado', 'paquete', 'ninguno']
+const DEFAULT_ROSETTA_HOURS = 24
+// Rosetta de los estudiantes con plan 'ilimitado' se descuenta de sus horas semanales; con 'paquete' usa su propio contador.
+const rosettaCountsWeekly = (plan) => plan === 'ilimitado'
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -141,9 +146,17 @@ async function requireStudentReady(req, res, next) {
   next()
 }
 
+const ROSETTA_USED_SQL = `(SELECT COUNT(*) FROM reservas rr WHERE rr.estudiante_id = e.id AND rr.tipo = 'Rosetta' AND rr.estado IN ('Confirmada', 'Completada'))`
+function serializeRosetta(row) {
+  const plan = ROSETTA_PLANS.includes(row.rosetta_plan) ? row.rosetta_plan : 'ninguno'
+  const usedHours = Number(row.rosetta_usadas || 0)
+  const totalHours = plan === 'paquete' ? Number(row.rosetta_horas_total) : null
+  return { plan, usedHours, totalHours, remainingHours: plan === 'paquete' ? Math.max(0, totalHours - usedHours) : null }
+}
 async function getStudent(userId) {
   const [rows] = await pool.query(
     `SELECT e.id, e.matricula, e.nombre_completo, e.nivel, e.debe_cambiar_password,
+      e.rosetta_plan, e.rosetta_horas_total, ${ROSETTA_USED_SQL} AS rosetta_usadas,
       c.horas_semanales, c.modalidad, c.fecha_inicio, c.fecha_fin, c.activo
      FROM estudiantes e
      LEFT JOIN contratos c ON c.estudiante_id = e.id AND c.activo = TRUE
@@ -161,6 +174,7 @@ function serializeStudent(row) {
     level: row.nivel || null,
     role: 'student',
     mustChangePassword: Boolean(row.debe_cambiar_password),
+    rosetta: serializeRosetta(row),
     contract: row.horas_semanales == null ? null : {
       weeklyHours: row.horas_semanales,
       modality: row.modalidad,
@@ -177,7 +191,7 @@ async function getStudentReservations(studentId) {
       TIME_FORMAT(r.hora_inicio, '%H:%i') AS startTime,
       TIME_FORMAT(r.hora_fin, '%H:%i') AS endTime,
       r.modalidad_asistencia AS modality, r.link_meet AS meetLink,
-      r.estado AS status, l.titulo AS lesson
+      r.estado AS status, r.tipo AS type, l.titulo AS lesson
      FROM reservas r LEFT JOIN lecciones l ON l.id = r.leccion_id
      WHERE r.estudiante_id = ? ORDER BY r.fecha, r.hora_inicio`,
     [studentId],
@@ -192,7 +206,8 @@ async function getStudentReservations(studentId) {
     modality: row.modality,
     meetLink: row.meetLink,
     status: row.status,
-    lesson: row.lesson || 'Clase',
+    type: row.type,
+    lesson: row.type === 'Rosetta' ? 'Rosetta' : row.lesson || 'Clase',
   }))
 }
 
@@ -218,6 +233,7 @@ async function getDailyRoomAssignments(date) {
       COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
       COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher
      FROM salones s LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
+     WHERE s.es_rosetta = FALSE
      ORDER BY s.nombre_salon`,
     [date],
   )
@@ -441,24 +457,35 @@ app.get('/api/student/availability', authenticate, requireStudentReady, asyncRou
   const dates = String(req.query.dates || '').split(',').filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date === bookableDateKey).slice(0, 7)
   if (!dates.length) return sendError(res, 400, 'Selecciona fechas válidas.', 'INVALID_DATES')
   const placeholders = dates.map(() => '?').join(', ')
-  const [roomRows] = await pool.query('SELECT COALESCE(SUM(capacidad_maxima), 0) AS capacity FROM salones')
-  const capacity = Number(roomRows[0].capacity)
+  // Cupos separados: salones de clase y salón(es) de Rosetta.
+  const [roomRows] = await pool.query('SELECT es_rosetta AS isRosetta, COALESCE(SUM(capacidad_maxima), 0) AS capacity FROM salones GROUP BY es_rosetta')
+  const capacity = Number(roomRows.find((row) => !row.isRosetta)?.capacity || 0)
+  const rosettaCapacity = Number(roomRows.find((row) => row.isRosetta)?.capacity || 0)
   const [reservationRows] = await pool.query(
-    `SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS dateKey, HOUR(hora_inicio) AS hour,
+    `SELECT DATE_FORMAT(fecha, '%Y-%m-%d') AS dateKey, HOUR(hora_inicio) AS hour, tipo AS type,
       COUNT(*) AS occupied, SUM(estudiante_id = ?) AS mine
      FROM reservas WHERE fecha IN (${placeholders}) AND estado = 'Confirmada'
-     GROUP BY fecha, HOUR(hora_inicio)`,
+     GROUP BY fecha, HOUR(hora_inicio), tipo`,
     [req.auth.userId, ...dates],
   )
-  const occupied = new Map(reservationRows.map((row) => [`${row.dateKey}-${row.hour}`, row]))
+  const occupied = new Map(reservationRows.map((row) => [`${row.dateKey}-${row.hour}-${row.type}`, row]))
   const slots = dates.flatMap((dateKey) => {
     const hours = getClassHours(dateKey)
     if (!hours) return []
     const { startHour, endHour } = hours
     return Array.from({ length: endHour - startHour }, (_, index) => {
       const hour = startHour + index
-      const entry = occupied.get(`${dateKey}-${hour}`)
-      return { dateKey, hour, available: capacity > 0 && Number(entry?.occupied || 0) < capacity, reservedByStudent: Number(entry?.mine || 0) > 0 }
+      const classEntry = occupied.get(`${dateKey}-${hour}-Clase`)
+      const rosettaEntry = occupied.get(`${dateKey}-${hour}-Rosetta`)
+      const reservedType = Number(classEntry?.mine || 0) > 0 ? 'Clase' : Number(rosettaEntry?.mine || 0) > 0 ? 'Rosetta' : null
+      return {
+        dateKey,
+        hour,
+        available: capacity > 0 && Number(classEntry?.occupied || 0) < capacity,
+        rosettaAvailable: rosettaCapacity > 0 && Number(rosettaEntry?.occupied || 0) < rosettaCapacity,
+        reservedByStudent: Boolean(reservedType),
+        reservedType,
+      }
     })
   })
   res.json({ slots })
@@ -471,8 +498,9 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
-    const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ? FOR UPDATE', [req.auth.userId])
+    const [students] = await connection.query('SELECT id, rosetta_plan, rosetta_horas_total FROM estudiantes WHERE id = ? FOR UPDATE', [req.auth.userId])
     if (!students[0]) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
+    const rosettaPlan = students[0].rosetta_plan
     const [contracts] = await connection.query(
       'SELECT horas_semanales, modalidad FROM contratos WHERE estudiante_id = ? AND activo = TRUE ORDER BY id DESC LIMIT 1',
       [req.auth.userId],
@@ -482,9 +510,13 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
     if (!CONTRACT_MODALITIES.includes(student.modalidad)) throw Object.assign(new Error('Tu contrato no tiene una modalidad válida. Contacta a recepción.'), { status: 409 })
     const attendanceMode = student.modalidad
     const [lessons] = await connection.query('SELECT id FROM lecciones ORDER BY orden LIMIT 1')
-    if (!lessons[0]) throw Object.assign(new Error('No hay lecciones configuradas.'), { status: 409 })
     const bookableDateKey = await getBookableDateKey()
     for (const slot of slots) {
+      const type = slot.type === undefined ? 'Clase' : slot.type
+      if (!RESERVATION_TYPES.includes(type)) throw Object.assign(new Error('Tipo de reserva inválido.'), { status: 400 })
+      const isRosetta = type === 'Rosetta'
+      if (isRosetta && !['ilimitado', 'paquete'].includes(rosettaPlan)) throw Object.assign(new Error('No tienes Rosetta en tu contrato. Pregunta en recepción.'), { status: 403 })
+      if (!isRosetta && !lessons[0]) throw Object.assign(new Error('No hay lecciones configuradas.'), { status: 409 })
       const dateKey = String(slot.dateKey || slot.id || '').slice(0, 10)
       const startHour = Number(slot.hour)
       const classHours = getClassHours(dateKey)
@@ -492,12 +524,21 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
         throw Object.assign(new Error('La hora seleccionada está fuera del horario de clases de ese día.'), { status: 400 })
       }
       if (dateKey !== bookableDateKey) throw Object.assign(new Error('Solo puedes reservar para el siguiente día de clases.'), { status: 400 })
-      const [countRows] = await connection.query(
-        `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
-         AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3)`,
-        [req.auth.userId, dateKey],
-      )
-      if (Number(countRows[0].total) >= student.horas_semanales) throw Object.assign(new Error('Excediste las horas semanales contratadas.'), { status: 409 })
+      if (!isRosetta || rosettaCountsWeekly(rosettaPlan)) {
+        const [countRows] = await connection.query(
+          `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
+           AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3) AND (tipo = 'Clase' OR ?)`,
+          [req.auth.userId, dateKey, rosettaCountsWeekly(rosettaPlan)],
+        )
+        if (Number(countRows[0].total) >= student.horas_semanales) throw Object.assign(new Error('Excediste las horas semanales contratadas.'), { status: 409 })
+      }
+      if (isRosetta && rosettaPlan === 'paquete') {
+        const [rosettaRows] = await connection.query(
+          `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND tipo = 'Rosetta' AND estado IN ('Confirmada', 'Completada')`,
+          [req.auth.userId],
+        )
+        if (Number(rosettaRows[0].total) >= Number(students[0].rosetta_horas_total)) throw Object.assign(new Error(`Ya usaste tus ${students[0].rosetta_horas_total} horas de Rosetta.`), { status: 409 })
+      }
       const [existing] = await connection.query(
         `SELECT id FROM reservas WHERE estudiante_id = ? AND fecha = ? AND estado = 'Confirmada'
          AND hora_inicio < ? AND hora_fin > ? LIMIT 1`,
@@ -509,13 +550,14 @@ app.post('/api/reservations', authenticate, requireStudentReady, asyncRoute(asyn
       const [rooms] = await connection.query(
         `SELECT s.id FROM salones s LEFT JOIN reservas r ON r.salon_id = s.id AND r.fecha = ?
          AND r.estado = 'Confirmada' AND r.hora_inicio < ? AND r.hora_fin > ?
+         WHERE s.es_rosetta = ?
          GROUP BY s.id, s.capacidad_maxima HAVING COUNT(r.id) < s.capacidad_maxima ORDER BY s.id LIMIT 1`,
-        [dateKey, end, start],
+        [dateKey, end, start, isRosetta],
       )
-      if (!rooms[0]) throw Object.assign(new Error('No hay salones disponibles para uno de los horarios.'), { status: 409 })
+      if (!rooms[0]) throw Object.assign(new Error(isRosetta ? 'El salón de Rosetta ya está lleno en uno de los horarios.' : 'No hay salones disponibles para uno de los horarios.'), { status: 409 })
       await connection.query(
-        'INSERT INTO reservas (estudiante_id, salon_id, leccion_id, fecha, hora_inicio, hora_fin, modalidad_asistencia) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.auth.userId, rooms[0].id, lessons[0].id, dateKey, start, end, attendanceMode],
+        'INSERT INTO reservas (estudiante_id, salon_id, leccion_id, fecha, hora_inicio, hora_fin, modalidad_asistencia, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [req.auth.userId, rooms[0].id, isRosetta ? null : lessons[0].id, dateKey, start, end, attendanceMode, type],
       )
     }
     await connection.commit()
@@ -538,7 +580,7 @@ app.patch('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
-    const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ? FOR UPDATE', [req.auth.userId])
+    const [students] = await connection.query('SELECT id, rosetta_plan FROM estudiantes WHERE id = ? FOR UPDATE', [req.auth.userId])
     if (!students[0]) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
     const [contracts] = await connection.query(
       'SELECT horas_semanales FROM contratos WHERE estudiante_id = ? AND activo = TRUE ORDER BY id DESC LIMIT 1',
@@ -546,12 +588,13 @@ app.patch('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute
     )
     const student = contracts[0]
     if (!student?.horas_semanales) throw Object.assign(new Error('No hay un contrato activo con horas disponibles.'), { status: 409 })
-    const [current] = await connection.query("SELECT id FROM reservas WHERE id = ? AND estudiante_id = ? AND estado = 'Confirmada'", [req.params.id, req.auth.userId])
+    // Solo se pueden mover clases normales; Rosetta se cancela y se vuelve a reservar.
+    const [current] = await connection.query("SELECT id FROM reservas WHERE id = ? AND estudiante_id = ? AND estado = 'Confirmada' AND tipo = 'Clase'", [req.params.id, req.auth.userId])
     if (!current[0]) throw Object.assign(new Error('Reserva no encontrada.'), { status: 404 })
     const [weekCount] = await connection.query(
       `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
-       AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3) AND id <> ?`,
-      [req.auth.userId, dateKey, req.params.id],
+       AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3) AND id <> ? AND (tipo = 'Clase' OR ?)`,
+      [req.auth.userId, dateKey, req.params.id, rosettaCountsWeekly(students[0].rosetta_plan)],
     )
     if (Number(weekCount[0].total) >= student.horas_semanales) throw Object.assign(new Error('Excediste las horas semanales contratadas.'), { status: 409 })
     const start = `${String(startHour).padStart(2, '0')}:00:00`
@@ -565,6 +608,7 @@ app.patch('/api/reservations/:id', authenticate, requireStudentReady, asyncRoute
     const [rooms] = await connection.query(
       `SELECT s.id FROM salones s LEFT JOIN reservas r ON r.salon_id = s.id AND r.fecha = ?
        AND r.estado = 'Confirmada' AND r.id <> ? AND r.hora_inicio < ? AND r.hora_fin > ?
+       WHERE s.es_rosetta = FALSE
        GROUP BY s.id, s.capacidad_maxima HAVING COUNT(r.id) < s.capacidad_maxima ORDER BY s.id LIMIT 1`,
       [dateKey, req.params.id, end, start],
     )
@@ -621,6 +665,7 @@ app.delete('/api/reservations', authenticate, requireStudentReady, asyncRoute(as
 app.get('/api/reception/students', authenticate, requireRole('reception'), asyncRoute(async (_req, res) => {
   const [rows] = await pool.query(
     `SELECT e.id, e.matricula, e.nombre_completo, e.nivel, e.debe_cambiar_password,
+      e.rosetta_plan, e.rosetta_horas_total, ${ROSETTA_USED_SQL} AS rosetta_usadas,
       c.horas_semanales, c.modalidad, c.fecha_inicio, c.fecha_fin, c.activo,
       COUNT(CASE WHEN r.estado = 'Confirmada' THEN 1 END) AS active_reservations
      FROM estudiantes e
@@ -631,11 +676,12 @@ app.get('/api/reception/students', authenticate, requireRole('reception'), async
   res.json({ students: rows.map((row) => ({ ...serializeStudent(row), activeReservations: Number(row.active_reservations) })) })
 }))
 
+const serializeRoom = (room) => ({ ...room, isRosetta: Boolean(room.isRosetta) })
 app.get('/api/reception/rooms', authenticate, requireRole('reception'), asyncRoute(async (_req, res) => {
   const [rows] = await pool.query(
-    'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones ORDER BY nombre_salon',
+    'SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity, es_rosetta AS isRosetta FROM salones ORDER BY nombre_salon',
   )
-  res.json({ rooms: rows })
+  res.json({ rooms: rows.map(serializeRoom) })
 }))
 
 app.get('/api/reception/lessons', authenticate, requireRole('reception'), asyncRoute(async (_req, res) => {
@@ -655,7 +701,7 @@ app.put('/api/reception/daily-room-assignments/:date', authenticate, requireRole
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
-    const [dbRooms] = await connection.query('SELECT id, capacidad_maxima AS capacity FROM salones ORDER BY id FOR UPDATE')
+    const [dbRooms] = await connection.query('SELECT id, capacidad_maxima AS capacity FROM salones WHERE es_rosetta = FALSE ORDER BY id FOR UPDATE')
     if (roomIds.size !== dbRooms.length || dbRooms.some((room) => !roomIds.has(room.id))) {
       throw Object.assign(new Error('La lista de salones cambió. Actualiza los datos e inténtalo de nuevo.'), { status: 409 })
     }
@@ -760,13 +806,14 @@ app.post('/api/reception/rooms', authenticate, requireRole('reception'), asyncRo
   const morningTeacher = String(req.body.morningTeacher || '').trim()
   const afternoonTeacher = String(req.body.afternoonTeacher || '').trim()
   const capacity = Number(req.body.capacity)
+  const isRosetta = req.body.isRosetta === true
   if (!name || !morningTeacher || !afternoonTeacher || !Number.isInteger(capacity) || capacity < 1) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
   const [result] = await pool.query(
-    'INSERT INTO salones (nombre_salon, profesor_manana, profesor_tarde, capacidad_maxima) VALUES (?, ?, ?, ?)',
-    [name, morningTeacher, afternoonTeacher, capacity],
+    'INSERT INTO salones (nombre_salon, profesor_manana, profesor_tarde, capacidad_maxima, es_rosetta) VALUES (?, ?, ?, ?, ?)',
+    [name, morningTeacher, afternoonTeacher, capacity, isRosetta],
   )
-  const [rows] = await pool.query('SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones WHERE id = ?', [result.insertId])
-  res.status(201).json({ room: rows[0] })
+  const [rows] = await pool.query('SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity, es_rosetta AS isRosetta FROM salones WHERE id = ?', [result.insertId])
+  res.status(201).json({ room: serializeRoom(rows[0]) })
 }))
 
 app.patch('/api/reception/rooms/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
@@ -774,14 +821,15 @@ app.patch('/api/reception/rooms/:id', authenticate, requireRole('reception'), as
   const morningTeacher = String(req.body.morningTeacher || '').trim()
   const afternoonTeacher = String(req.body.afternoonTeacher || '').trim()
   const capacity = Number(req.body.capacity)
+  const isRosetta = req.body.isRosetta === undefined ? null : req.body.isRosetta === true
   if (!name || !morningTeacher || !afternoonTeacher || !Number.isInteger(capacity) || capacity < 1) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
   const [result] = await pool.query(
-    'UPDATE salones SET nombre_salon = ?, profesor_manana = ?, profesor_tarde = ?, capacidad_maxima = ? WHERE id = ?',
-    [name, morningTeacher, afternoonTeacher, capacity, req.params.id],
+    'UPDATE salones SET nombre_salon = ?, profesor_manana = ?, profesor_tarde = ?, capacidad_maxima = ?, es_rosetta = COALESCE(?, es_rosetta) WHERE id = ?',
+    [name, morningTeacher, afternoonTeacher, capacity, isRosetta, req.params.id],
   )
   if (!result.affectedRows) return sendError(res, 404, 'Salón no encontrado.', 'ROOM_NOT_FOUND')
-  const [rows] = await pool.query('SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity FROM salones WHERE id = ?', [req.params.id])
-  res.json({ room: rows[0] })
+  const [rows] = await pool.query('SELECT id, nombre_salon AS name, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher, capacidad_maxima AS capacity, es_rosetta AS isRosetta FROM salones WHERE id = ?', [req.params.id])
+  res.json({ room: serializeRoom(rows[0]) })
 }))
 
 app.delete('/api/reception/rooms/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
@@ -801,6 +849,9 @@ app.post('/api/reception/students', authenticate, requireRole('reception'), asyn
   if (!Number.isInteger(weeklyHours) || weeklyHours < 1) return sendError(res, 400, 'Las horas semanales deben ser un número entero mayor o igual a 1.', 'INVALID_WEEKLY_HOURS')
   if (!isValidDateKey(contractEnd)) return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
   if (!matricula || !name) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
+  // Los estudiantes nuevos eligen si toman el paquete de Rosetta (24 h aparte de sus clases).
+  if (!['si', 'no'].includes(req.body.rosetta)) return sendError(res, 400, 'Indica si el estudiante toma Rosetta.', 'INVALID_ROSETTA')
+  const rosettaPlan = req.body.rosetta === 'si' ? 'paquete' : 'ninguno'
   if (req.body.password !== undefined && passwordError(String(req.body.password))) return sendError(res, 400, passwordError(String(req.body.password)), 'INVALID_PASSWORD')
   const temporaryPassword = String(req.body.password || randomBytes(9).toString('base64url'))
   const password = await bcrypt.hash(temporaryPassword, bcryptRounds)
@@ -814,8 +865,8 @@ app.post('/api/reception/students', authenticate, requireRole('reception'), asyn
       return sendError(res, 400, 'Ingresa una fecha de vencimiento válida.', 'INVALID_CONTRACT_END')
     }
     const [result] = await connection.query(
-      'INSERT INTO estudiantes (matricula, nombre_completo, nivel, password, debe_cambiar_password) VALUES (?, ?, ?, ?, TRUE)',
-      [matricula, name, level, password],
+      'INSERT INTO estudiantes (matricula, nombre_completo, nivel, password, debe_cambiar_password, rosetta_plan, rosetta_horas_total) VALUES (?, ?, ?, ?, TRUE, ?, ?)',
+      [matricula, name, level, password, rosettaPlan, DEFAULT_ROSETTA_HOURS],
     )
     studentId = result.insertId
     await connection.query(
@@ -850,8 +901,11 @@ app.patch('/api/reception/students/:id', authenticate, requireRole('reception'),
   const { level } = req.body
   if (level !== undefined && !LEVEL_CODES.includes(level)) return sendError(res, 400, 'Selecciona un nivel válido.', 'INVALID_LEVEL')
   if (!name || !matricula) return sendError(res, 400, 'Campos obligatorios incompletos.', 'REQUIRED_FIELDS')
-  const { modality, contractEnd } = req.body
+  const { modality, contractEnd, rosettaPlan } = req.body
   const weeklyHours = req.body.weeklyHours === undefined ? undefined : Number(req.body.weeklyHours)
+  const rosettaTotalHours = req.body.rosettaTotalHours === undefined ? undefined : Number(req.body.rosettaTotalHours)
+  if (rosettaPlan !== undefined && !ROSETTA_PLANS.includes(rosettaPlan)) return sendError(res, 400, 'Selecciona un plan de Rosetta válido.', 'INVALID_ROSETTA')
+  if (rosettaTotalHours !== undefined && (!Number.isInteger(rosettaTotalHours) || rosettaTotalHours < 0 || rosettaTotalHours > 1000)) return sendError(res, 400, 'Las horas de Rosetta deben ser un número entero entre 0 y 1000.', 'INVALID_ROSETTA_HOURS')
   if ((modality === undefined) !== (contractEnd === undefined)) return sendError(res, 400, 'Indica modalidad y vencimiento.', 'CONTRACT_FIELDS_INCOMPLETE')
   if (weeklyHours !== undefined && (!Number.isInteger(weeklyHours) || weeklyHours < 1)) return sendError(res, 400, 'Las horas semanales deben ser un número entero mayor o igual a 1.', 'INVALID_WEEKLY_HOURS')
   if (modality !== undefined && !CONTRACT_MODALITIES.includes(modality)) return sendError(res, 400, 'Selecciona una modalidad válida.', 'INVALID_MODALITY')
@@ -859,7 +913,10 @@ app.patch('/api/reception/students/:id', authenticate, requireRole('reception'),
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
-    await connection.query('UPDATE estudiantes SET nombre_completo = ?, matricula = ?, nivel = COALESCE(?, nivel) WHERE id = ?', [name, matricula, level ?? null, req.params.id])
+    await connection.query(
+      'UPDATE estudiantes SET nombre_completo = ?, matricula = ?, nivel = COALESCE(?, nivel), rosetta_plan = COALESCE(?, rosetta_plan), rosetta_horas_total = COALESCE(?, rosetta_horas_total) WHERE id = ?',
+      [name, matricula, level ?? null, rosettaPlan ?? null, rosettaTotalHours ?? null, req.params.id],
+    )
     const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ?', [req.params.id])
     if (!students[0]) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
     const [contracts] = await connection.query(
@@ -931,13 +988,13 @@ app.get('/api/reception/reservations', authenticate, requireRole('reception'), a
   const [rows] = await pool.query(
     `SELECT r.id, e.matricula, e.nombre_completo, e.nivel AS level, DATE_FORMAT(r.fecha, '%Y-%m-%d') AS dateKey,
       TIME_FORMAT(r.hora_inicio, '%H:%i') AS startTime, TIME_FORMAT(r.hora_fin, '%H:%i') AS endTime,
-      r.estado AS status, r.modalidad_asistencia AS modality, l.titulo AS lesson
+      r.estado AS status, r.modalidad_asistencia AS modality, r.tipo AS type, l.titulo AS lesson
      FROM reservas r JOIN estudiantes e ON e.id = r.estudiante_id
      LEFT JOIN lecciones l ON l.id = r.leccion_id ${where}
      ORDER BY r.fecha, r.hora_inicio, e.nombre_completo`,
     params,
   )
-  res.json({ reservations: rows.map((row) => ({ ...row, studentId: row.matricula, student: row.nombre_completo })) })
+  res.json({ reservations: rows.map((row) => ({ ...row, lesson: row.type === 'Rosetta' ? 'Rosetta' : row.lesson, studentId: row.matricula, student: row.nombre_completo })) })
 }))
 
 app.patch('/api/reception/reservations/:id', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
@@ -947,26 +1004,37 @@ app.patch('/api/reception/reservations/:id', authenticate, requireRole('receptio
   try {
     await connection.beginTransaction()
     const [reservations] = await connection.query(
-      'SELECT estudiante_id, fecha, estado FROM reservas WHERE id = ? FOR UPDATE',
+      'SELECT estudiante_id, fecha, estado, tipo FROM reservas WHERE id = ? FOR UPDATE',
       [req.params.id],
     )
     const reservation = reservations[0]
     if (!reservation) throw Object.assign(new Error('Reserva no encontrada.'), { status: 404 })
     if (req.body.status === 'Confirmada' && reservation.estado === 'Cancelada') {
-      const [students] = await connection.query('SELECT id FROM estudiantes WHERE id = ? FOR UPDATE', [reservation.estudiante_id])
+      const [students] = await connection.query('SELECT id, rosetta_plan, rosetta_horas_total FROM estudiantes WHERE id = ? FOR UPDATE', [reservation.estudiante_id])
       if (!students[0]) throw Object.assign(new Error('Estudiante no encontrado.'), { status: 404 })
-      const [contracts] = await connection.query(
-        'SELECT horas_semanales FROM contratos WHERE estudiante_id = ? AND activo = TRUE ORDER BY id DESC LIMIT 1',
-        [reservation.estudiante_id],
-      )
-      if (!contracts[0]?.horas_semanales) throw Object.assign(new Error('No hay un contrato activo con horas disponibles.'), { status: 409 })
-      const [weekCount] = await connection.query(
-        `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
-         AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3)`,
-        [reservation.estudiante_id, reservation.fecha],
-      )
-      if (Number(weekCount[0].total) >= contracts[0].horas_semanales) {
-        throw Object.assign(new Error('No se puede reconfirmar la reserva: el alumno excedería sus horas semanales contratadas.'), { status: 409 })
+      const plan = students[0].rosetta_plan
+      if (reservation.tipo === 'Rosetta' && plan === 'paquete') {
+        const [rosettaRows] = await connection.query(
+          `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND tipo = 'Rosetta' AND estado IN ('Confirmada', 'Completada')`,
+          [reservation.estudiante_id],
+        )
+        if (Number(rosettaRows[0].total) >= Number(students[0].rosetta_horas_total)) {
+          throw Object.assign(new Error('No se puede reconfirmar: el alumno ya usó todas sus horas de Rosetta.'), { status: 409 })
+        }
+      } else {
+        const [contracts] = await connection.query(
+          'SELECT horas_semanales FROM contratos WHERE estudiante_id = ? AND activo = TRUE ORDER BY id DESC LIMIT 1',
+          [reservation.estudiante_id],
+        )
+        if (!contracts[0]?.horas_semanales) throw Object.assign(new Error('No hay un contrato activo con horas disponibles.'), { status: 409 })
+        const [weekCount] = await connection.query(
+          `SELECT COUNT(*) AS total FROM reservas WHERE estudiante_id = ? AND estado IN ('Confirmada', 'Completada')
+           AND YEARWEEK(fecha, 3) = YEARWEEK(?, 3) AND (tipo = 'Clase' OR ?)`,
+          [reservation.estudiante_id, reservation.fecha, rosettaCountsWeekly(plan)],
+        )
+        if (Number(weekCount[0].total) >= contracts[0].horas_semanales) {
+          throw Object.assign(new Error('No se puede reconfirmar la reserva: el alumno excedería sus horas semanales contratadas.'), { status: 409 })
+        }
       }
     }
     if (reservation.estado !== req.body.status) {

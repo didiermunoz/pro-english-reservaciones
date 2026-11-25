@@ -1,0 +1,360 @@
+/* Pantalla TV para alumnos: pensada para leerse de lejos (1920×1080 o 1280×720). */
+.tvs-page {
+  --tvs-bg: #0b1622;
+  --tvs-card: #13263a;
+  --tvs-border: #24425f;
+  --tvs-text: #f8fafc;
+  --tvs-muted: #a9bccd;
+  --tvs-accent: #38bdf8;
+  --tvs-rosetta: #a78bfa;
+  box-sizing: border-box;
+  display: flex;
+  height: 100vh;
+  height: 100svh;
+  flex-direction: column;
+  gap: clamp(10px, 1.6vh, 22px);
+  overflow: hidden;
+  padding: clamp(14px, 2.2vh, 32px) clamp(16px, 2.4vw, 44px);
+  color: var(--tvs-text);
+  background: var(--tvs-bg);
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+}
+
+.tvs-page *,
+.tvs-page *::before,
+.tvs-page *::after {
+  box-sizing: border-box;
+}
+
+.tvs-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title clock"
+    "controls controls";
+  align-items: end;
+  gap: 8px 24px;
+  padding-bottom: clamp(8px, 1.4vh, 16px);
+  border-bottom: 2px solid var(--tvs-border);
+}
+
+.tvs-page.is-fullscreen .tvs-header {
+  grid-template-areas: "title clock";
+}
+
+.tvs-title {
+  grid-area: title;
+  min-width: 0;
+}
+
+.tvs-eyebrow {
+  color: var(--tvs-accent);
+  font-size: clamp(.8rem, 1.1vw, 1.25rem);
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.tvs-title h1 {
+  margin: 4px 0 0;
+  font-family: var(--font-heading, 'Poppins', system-ui, sans-serif);
+  font-size: clamp(1.8rem, 3.6vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.tvs-title h1 strong {
+  color: var(--tvs-accent);
+}
+
+.tvs-title p {
+  margin: 6px 0 0;
+  color: var(--tvs-muted);
+  font-size: clamp(1rem, 1.5vw, 1.8rem);
+}
+
+.tvs-clock {
+  grid-area: clock;
+  font-family: var(--font-heading, 'Poppins', system-ui, sans-serif);
+  font-size: clamp(2rem, 4.4vw, 5.2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tvs-controls {
+  grid-area: controls;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.tvs-page.is-fullscreen .tvs-controls {
+  display: none;
+}
+
+.tvs-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--tvs-muted);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.tvs-controls input,
+.tvs-controls select,
+.tvs-controls button,
+.tvs-controls a {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--tvs-border);
+  border-radius: 8px;
+  color: var(--tvs-text);
+  background: #172d44;
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tvs-controls input {
+  color-scheme: dark;
+}
+
+.tvs-controls button,
+.tvs-controls a {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.tvs-controls a {
+  border-color: #2775de;
+  background: #0757c9;
+}
+
+.tvs-controls :is(input, select, button, a):focus-visible {
+  outline: 3px solid var(--tvs-accent);
+  outline-offset: 2px;
+}
+
+.tvs-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fecaca;
+  background: #4c1d1d;
+  font-size: 1rem;
+}
+
+.tvs-grid {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: repeat(var(--tvs-columns, 3), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(10px, 1.4vw, 24px);
+}
+
+.tvs-room {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: clamp(6px, 1vh, 14px);
+  overflow: hidden;
+  padding: clamp(12px, 1.6vw, 28px);
+  border: 2px solid var(--tvs-border);
+  border-top: 8px solid var(--tvs-accent);
+  border-radius: 16px;
+  background: var(--tvs-card);
+}
+
+.tvs-room.is-rosetta {
+  border-color: #4c3a8a;
+  border-top-color: var(--tvs-rosetta);
+  background: #1e1840;
+}
+
+.tvs-room-label {
+  color: var(--tvs-accent);
+  font-size: var(--tvs-label, 1rem);
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.tvs-room.is-rosetta .tvs-room-label {
+  color: var(--tvs-rosetta);
+}
+
+.tvs-room-header h2 {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-heading, 'Poppins', system-ui, sans-serif);
+  font-size: calc(var(--tvs-room, 3rem) * var(--tvs-scale, 1));
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tvs-teacher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.tvs-teacher span {
+  color: var(--tvs-muted);
+  font-size: var(--tvs-label, 1rem);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tvs-teacher strong {
+  font-size: calc(var(--tvs-teacher, 1.8rem) * var(--tvs-scale, 1));
+}
+
+.tvs-lesson {
+  margin: 0;
+  color: var(--tvs-muted);
+  font-size: var(--tvs-label, 1rem);
+}
+
+.tvs-students {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tvs-matricula, 1.7rem) * var(--tvs-scale, 1) * 3.6), 1fr));
+  align-content: start;
+  gap: clamp(6px, .6vw, 12px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tvs-students li {
+  padding: .28em .4em;
+  border-radius: 10px;
+  color: #0b1622;
+  background: #e0f2fe;
+  font-size: calc(var(--tvs-matricula, 1.7rem) * var(--tvs-scale, 1));
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .03em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tvs-room.is-rosetta .tvs-students li {
+  background: #ede9fe;
+}
+
+/* Tamaños según cuántos salones se muestran */
+.density-xl {
+  --tvs-room: clamp(2.4rem, 5.5vw, 6.5rem);
+  --tvs-teacher: clamp(1.4rem, 2.6vw, 3.2rem);
+  --tvs-matricula: clamp(1.4rem, 2.6vw, 3rem);
+  --tvs-label: clamp(.9rem, 1.3vw, 1.5rem);
+}
+
+.density-lg {
+  --tvs-room: clamp(2rem, 4vw, 4.8rem);
+  --tvs-teacher: clamp(1.2rem, 2vw, 2.4rem);
+  --tvs-matricula: clamp(1.2rem, 2vw, 2.4rem);
+  --tvs-label: clamp(.85rem, 1.1vw, 1.3rem);
+}
+
+.density-md {
+  --tvs-room: clamp(1.7rem, 3vw, 3.6rem);
+  --tvs-teacher: clamp(1.05rem, 1.6vw, 2rem);
+  --tvs-matricula: clamp(1.05rem, 1.6vw, 2rem);
+  --tvs-label: clamp(.8rem, 1vw, 1.15rem);
+}
+
+.density-sm {
+  --tvs-room: clamp(1.3rem, 2.2vw, 2.7rem);
+  --tvs-teacher: clamp(.95rem, 1.25vw, 1.5rem);
+  --tvs-matricula: clamp(1rem, 1.4vw, 1.7rem);
+  --tvs-label: clamp(.75rem, .9vw, 1rem);
+}
+
+.tvs-empty {
+  display: grid;
+  flex: 1 1 auto;
+  place-content: center;
+  gap: 12px;
+  border: 2px dashed var(--tvs-border);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.tvs-empty strong {
+  font-size: clamp(1.6rem, 3vw, 3.4rem);
+}
+
+.tvs-empty span {
+  color: var(--tvs-muted);
+  font-size: clamp(1rem, 1.8vw, 2rem);
+}
+
+.tvs-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--tvs-muted);
+  font-size: clamp(.8rem, 1vw, 1.1rem);
+}
+
+/* En pantallas angostas (tablet o celular de recepción) se permite desplazarse */
+@media (max-width: 900px) {
+  .tvs-page {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
+  .tvs-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
+
+  .tvs-room-header h2 {
+    white-space: normal;
+  }
+
+  .tvs-students {
+    overflow: visible;
+  }
+}
+
+/* Muchos salones (7 o más): se quita lo secundario para que las matrículas sigan grandes */
+.density-sm {
+  gap: clamp(8px, .8vw, 16px);
+}
+
+.density-sm .tvs-room {
+  gap: 6px;
+  padding: clamp(8px, .9vw, 18px) clamp(10px, 1vw, 20px);
+  border-top-width: 6px;
+}
+
+.density-sm .tvs-room-label,
+.density-sm .tvs-lesson {
+  display: none;
+}
+
+.density-sm .tvs-teacher span {
+  display: none;
+}
+
+.density-sm .tvs-students {
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tvs-matricula) * var(--tvs-scale, 1) * 3.3), 1fr));
+}
+
+.density-sm .tvs-students li {
+  padding: .18em .3em;
+  border-radius: 8px;
+}

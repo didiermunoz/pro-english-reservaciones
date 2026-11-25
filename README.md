@@ -56,6 +56,10 @@ Rosetta es una clase especial que el alumno reserva por su cuenta desde la agend
 - **Sin Rosetta**: no ve el botón.
 - El cupo por hora es el *Aforo máximo* del salón marcado como **Salón de Rosetta** en Recepción > Salones. Ese salón no aparece en la asignación diaria ni en la pantalla TV.
 
+## Asignación de salones por hora y pantalla TV
+Aplica una vez `database/migration-asignacion-por-hora.sql` con un usuario administrador (la lección de cada salón pasa a ser opcional).
+- **Recepción → Asignación Diaria de Salones** (`/recepcion/asignacion-diaria`): elige fecha y hora (por defecto, la siguiente: a las 12:50 muestra la clase de la 1). Arriba aparecen las matrículas con clase a esa hora que aún no tienen salón; selecciónalas y pulsa «Colocar aquí», o arrástralas al salón. Cada salón tiene su maestro del turno y una lección opcional. Guardar solo afecta esa hora.
+- **Pantalla TV** (`/recepcion/pantalla-tv`): muestra una hora a la vez con salón, maestro y matrículas. En modo automático muestra la hora actual y desde el minuto 40 cambia a la siguiente clase. Los alumnos con Rosetta aparecen en la tarjeta morada del salón de Rosetta. El tamaño del texto se ajusta solo para que todo quepa.
 ## Seguridad
 - **Producción:** define `NODE_ENV=production`. La API no arranca si `JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 caracteres.
 - **Base de datos:** crea un usuario con permisos mínimos con `database/app-user.sql` (solo `SELECT, INSERT, UPDATE, DELETE`) y úsalo en `DB_USER`. Las migraciones se ejecutan con un usuario administrador.

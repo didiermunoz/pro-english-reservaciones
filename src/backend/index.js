@@ -242,7 +242,7 @@ async function getDailyRoomAssignments(date) {
       l.titulo AS lessonTitle, l.tipo AS lessonType,
       TIME_FORMAT(b.hora_inicio, '%H:%i') AS startTime,
       TIME_FORMAT(b.hora_fin, '%H:%i') AS endTime
-     FROM bloques_diarios_salon b JOIN lecciones l ON l.id = b.leccion_id
+     FROM bloques_diarios_salon b LEFT JOIN lecciones l ON l.id = b.leccion_id
      WHERE b.fecha = ? ORDER BY b.salon_id, b.hora_inicio`,
     [date],
   )
@@ -750,28 +750,251 @@ app.put('/api/reception/daily-room-assignments/:date', authenticate, requireRole
   }
 }))
 
+// === Asignación de salones por hora ===
+const AFTERNOON_START_HOUR = 13
+const toTimeValue = (hour) => `${String(hour).padStart(2, '0')}:00:00`
+const toHourLabel = (hour) => `${String(hour).padStart(2, '0')}:00`
+function requireClassHour(date, value) {
+  const hour = Number(value)
+  const classHours = getClassHours(date)
+  if (!classHours || !Number.isInteger(hour) || hour < classHours.startHour || hour >= classHours.endHour) {
+    throw Object.assign(new Error('Selecciona una hora dentro del horario de clases de ese día.'), { status: 400 })
+  }
+  return hour
+}
+
+// Salones de clase (sin Rosetta) con su profesor del turno y los alumnos asignados a esa hora.
+async function getHourAssignments(date, hour, db = pool) {
+  const [rooms] = await db.query(
+    `SELECT s.id, s.nombre_salon AS name, s.capacidad_maxima AS capacity,
+      COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
+      COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher,
+      b.id AS blockId, b.leccion_id AS lessonId, l.titulo AS lessonTitle
+     FROM salones s
+     LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
+     LEFT JOIN bloques_diarios_salon b ON b.salon_id = s.id AND b.fecha = ? AND b.hora_inicio = ?
+     LEFT JOIN lecciones l ON l.id = b.leccion_id
+     WHERE s.es_rosetta = FALSE
+     ORDER BY s.nombre_salon, s.id`,
+    [date, date, toTimeValue(hour)],
+  )
+  const [assigned] = await db.query(
+    `SELECT b.salon_id AS roomId, e.id, e.matricula, e.nombre_completo AS name, e.nivel AS level
+     FROM alumnos_bloque_diario a
+     JOIN bloques_diarios_salon b ON b.id = a.bloque_id
+     JOIN estudiantes e ON e.id = a.estudiante_id
+     WHERE b.fecha = ? AND b.hora_inicio = ?
+     ORDER BY e.matricula`,
+    [date, toTimeValue(hour)],
+  )
+  const byRoom = new Map()
+  for (const row of assigned) {
+    const list = byRoom.get(row.roomId) || []
+    list.push({ id: row.id, matricula: row.matricula, name: row.name, level: row.level })
+    byRoom.set(row.roomId, list)
+  }
+  const isAfternoon = hour >= AFTERNOON_START_HOUR
+  const seen = new Set()
+  return rooms.filter((room) => !seen.has(room.id) && seen.add(room.id)).map((room) => ({
+    id: room.id,
+    name: room.name,
+    capacity: Number(room.capacity),
+    teacher: (isAfternoon ? room.afternoonTeacher : room.morningTeacher) || '',
+    lessonId: room.lessonId || null,
+    lessonTitle: room.lessonTitle || null,
+    students: byRoom.get(room.id) || [],
+  }))
+}
+
+// Alumnos con reserva de clase o de Rosetta para esa fecha y hora.
+async function getHourReservations(date, hour, type) {
+  const [rows] = await pool.query(
+    `SELECT DISTINCT e.id, e.matricula, e.nombre_completo AS name, e.nivel AS level
+     FROM reservas r JOIN estudiantes e ON e.id = r.estudiante_id
+     WHERE r.fecha = ? AND r.tipo = ? AND r.estado IN ('Confirmada', 'Completada')
+       AND r.hora_inicio <= ? AND r.hora_fin > ?
+     ORDER BY e.matricula`,
+    [date, type, toTimeValue(hour), toTimeValue(hour)],
+  )
+  return rows
+}
+
+async function getRosettaRooms(date, hour) {
+  const [rooms] = await pool.query('SELECT id, nombre_salon AS name, capacidad_maxima AS capacity, profesor_manana AS morningTeacher, profesor_tarde AS afternoonTeacher FROM salones WHERE es_rosetta = TRUE ORDER BY id')
+  if (!rooms.length) return []
+  const students = await getHourReservations(date, hour, 'Rosetta')
+  // Normalmente hay un solo salón de Rosetta; si hay varios, los alumnos se reparten en orden según el cupo.
+  let index = 0
+  return rooms.map((room, roomIndex) => {
+    const take = roomIndex === rooms.length - 1 ? students.length - index : Number(room.capacity)
+    const roomStudents = students.slice(index, index + Math.max(0, take))
+    index += roomStudents.length
+    return {
+      id: room.id,
+      name: room.name,
+      capacity: Number(room.capacity),
+      teacher: (hour >= AFTERNOON_START_HOUR ? room.afternoonTeacher : room.morningTeacher) || '',
+      isRosetta: true,
+      students: roomStudents,
+    }
+  })
+}
+
+app.get('/api/reception/hourly-room-assignments', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const date = requireDateKey(String(req.query.date || ''))
+  const hour = requireClassHour(date, req.query.hour)
+  const [rooms, reserved, rosettaRooms, lessons] = await Promise.all([
+    getHourAssignments(date, hour),
+    getHourReservations(date, hour, 'Clase'),
+    getRosettaRooms(date, hour),
+    pool.query('SELECT id, orden AS lessonOrder, titulo AS title FROM lecciones ORDER BY orden').then(([rows]) => rows),
+  ])
+  const assignedIds = new Set(rooms.flatMap((room) => room.students.map((student) => student.id)))
+  const reservedIds = new Set(reserved.map((student) => student.id))
+  res.json({
+    date,
+    hour: toHourLabel(hour),
+    rooms: rooms.map((room) => ({ ...room, students: room.students.map((student) => ({ ...student, hasReservation: reservedIds.has(student.id) })) })),
+    unassigned: reserved.filter((student) => !assignedIds.has(student.id)),
+    rosettaRooms,
+    lessons: lessons.map(({ lessonOrder, ...lesson }) => ({ ...lesson, order: lessonOrder })),
+  })
+}))
+
+app.put('/api/reception/hourly-room-assignments/:date/:hour', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
+  const date = requireDateKey(String(req.params.date || ''))
+  const hour = requireClassHour(date, req.params.hour)
+  const rooms = req.body.rooms
+  if (!Array.isArray(rooms) || rooms.length > 100) return sendError(res, 400, 'La lista de salones es obligatoria.', 'INVALID_ROOMS')
+  const seenRooms = new Set()
+  const seenStudents = new Set()
+  const parsed = rooms.map((room) => {
+    const roomId = Number(room.roomId)
+    const lessonId = room.lessonId === null || room.lessonId === '' || room.lessonId === undefined ? null : Number(room.lessonId)
+    const teacher = typeof room.teacher === 'string' ? room.teacher.trim() : ''
+    if (!Number.isInteger(roomId) || roomId < 1 || seenRooms.has(roomId)) throw Object.assign(new Error('La asignación contiene salones inválidos o repetidos.'), { status: 400 })
+    if (lessonId !== null && (!Number.isInteger(lessonId) || lessonId < 1)) throw Object.assign(new Error('Lección inválida.'), { status: 400 })
+    if (teacher.length > 100) throw Object.assign(new Error('El nombre del profesor debe tener como máximo 100 caracteres.'), { status: 400 })
+    if (!Array.isArray(room.studentIds) || room.studentIds.length > 200) throw Object.assign(new Error('La lista de alumnos es inválida.'), { status: 400 })
+    seenRooms.add(roomId)
+    const studentIds = room.studentIds.map(Number)
+    for (const studentId of studentIds) {
+      if (!Number.isInteger(studentId) || studentId < 1) throw Object.assign(new Error('La asignación contiene alumnos inválidos.'), { status: 400 })
+      if (seenStudents.has(studentId)) throw Object.assign(new Error('Un alumno no puede estar en dos salones a la misma hora.'), { status: 409 })
+      seenStudents.add(studentId)
+    }
+    return { roomId, lessonId, teacher, studentIds }
+  })
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [dbRooms] = await connection.query(
+      `SELECT s.id, s.nombre_salon AS name, s.capacidad_maxima AS capacity,
+        COALESCE(d.profesor_manana, s.profesor_manana) AS morningTeacher,
+        COALESCE(d.profesor_tarde, s.profesor_tarde) AS afternoonTeacher
+       FROM salones s LEFT JOIN asignaciones_diarias_salon d ON d.salon_id = s.id AND d.fecha = ?
+       WHERE s.es_rosetta = FALSE FOR UPDATE`,
+      [date],
+    )
+    const roomsById = new Map(dbRooms.map((room) => [room.id, room]))
+    for (const room of parsed) {
+      const dbRoom = roomsById.get(room.roomId)
+      if (!dbRoom) throw Object.assign(new Error('Uno de los salones ya no existe. Actualiza la página.'), { status: 409 })
+      if (room.studentIds.length > Number(dbRoom.capacity)) throw Object.assign(new Error(`${dbRoom.name} supera su aforo de ${dbRoom.capacity} alumnos.`), { status: 400 })
+    }
+    if (seenStudents.size) {
+      const ids = [...seenStudents]
+      const [known] = await connection.query(`SELECT id FROM estudiantes WHERE id IN (${ids.map(() => '?').join(', ')})`, ids)
+      if (known.length !== ids.length) throw Object.assign(new Error('Uno o más alumnos ya no existen.'), { status: 400 })
+    }
+    const lessonIds = [...new Set(parsed.map((room) => room.lessonId).filter(Boolean))]
+    if (lessonIds.length) {
+      const [known] = await connection.query(`SELECT id FROM lecciones WHERE id IN (${lessonIds.map(() => '?').join(', ')})`, lessonIds)
+      if (known.length !== lessonIds.length) throw Object.assign(new Error('Una o más lecciones ya no existen.'), { status: 400 })
+    }
+    // Reemplaza solo la hora indicada; las demás horas del día no se tocan.
+    await connection.query(
+      'DELETE b FROM bloques_diarios_salon b JOIN salones s ON s.id = b.salon_id WHERE b.fecha = ? AND b.hora_inicio = ? AND s.es_rosetta = FALSE',
+      [date, toTimeValue(hour)],
+    )
+    const isAfternoon = hour >= AFTERNOON_START_HOUR
+    for (const room of parsed) {
+      const dbRoom = roomsById.get(room.roomId)
+      const morningTeacher = isAfternoon ? dbRoom.morningTeacher || '' : room.teacher
+      const afternoonTeacher = isAfternoon ? room.teacher : dbRoom.afternoonTeacher || ''
+      await connection.query(
+        `INSERT INTO asignaciones_diarias_salon (fecha, salon_id, profesor_manana, profesor_tarde) VALUES (?, ?, ?, ?) 
+         ON DUPLICATE KEY UPDATE profesor_manana = VALUES(profesor_manana), profesor_tarde = VALUES(profesor_tarde)`,
+        [date, room.roomId, morningTeacher, afternoonTeacher],
+      )
+      if (!room.studentIds.length && !room.lessonId) continue
+      const [block] = await connection.query(
+        'INSERT INTO bloques_diarios_salon (fecha, salon_id, leccion_id, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?)',
+        [date, room.roomId, room.lessonId, toTimeValue(hour), toTimeValue(hour + 1)],
+      )
+      for (const studentId of room.studentIds) {
+        await connection.query('INSERT INTO alumnos_bloque_diario (bloque_id, estudiante_id) VALUES (?, ?)', [block.insertId, studentId])
+      }
+    }
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+  res.json({ message: `Asignación de las ${toHourLabel(hour)} guardada.` })
+}))
 app.post('/api/reception/tv-token', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {
   const [rows] = await pool.query('SELECT password FROM recepcion WHERE id = ?', [req.auth.userId])
   const token = signToken(req.auth.userId, 'tv', rows[0].password, '16h')
   res.json({ token })
 }))
 
+// Pantalla TV: una hora a la vez. Sin ?hour, muestra la hora actual y desde el minuto 40 cambia a la siguiente,
+// para que los alumnos que llegan antes vean a qué salón ir.
+const TV_NEXT_HOUR_FROM_MINUTE = 40
 app.get('/api/reception/daily-room-assignments/tv', authenticate, requireAnyRole(['reception', 'tv']), asyncRoute(async (req, res) => {
   const date = requireDateKey(String(req.query.date || ''))
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  const rooms = (await getDailyRoomAssignments(date))
-    .filter((room) => room.blocks.length)
-    .map((room) => ({
-      ...room,
-      blocks: room.blocks.map((block) => ({
-        ...block,
-        teacher: block.startTime < '13:00' ? room.morningTeacher : room.afternoonTeacher,
-        isCurrent: date === today && block.startTime <= currentTime && block.endTime > currentTime,
-      })),
-    }))
-  res.json({ date, currentTime, generatedAt: now.toISOString(), rooms })
+  const classHours = getClassHours(date)
+  if (!classHours) return res.json({ date, currentTime, generatedAt: now.toISOString(), hour: null, hours: [], rooms: [] })
+  const hours = Array.from({ length: classHours.endHour - classHours.startHour }, (_, index) => classHours.startHour + index)
+  let hour
+  if (req.query.hour) hour = requireClassHour(date, String(req.query.hour).slice(0, 2))
+  else if (date === today) hour = Math.min(Math.max(now.getHours() + (now.getMinutes() >= TV_NEXT_HOUR_FROM_MINUTE ? 1 : 0), classHours.startHour), classHours.endHour - 1)
+  else hour = classHours.startHour
+  const [classRooms, rosettaRooms] = await Promise.all([getHourAssignments(date, hour), getRosettaRooms(date, hour)])
+  const rooms = [
+    ...classRooms.filter((room) => room.students.length).map((room) => ({
+      id: room.id,
+      name: room.name,
+      teacher: room.teacher,
+      lessonTitle: room.lessonTitle,
+      isRosetta: false,
+      students: room.students.map(({ id, matricula }) => ({ id, matricula })),
+    })),
+    ...rosettaRooms.filter((room) => room.students.length).map((room) => ({
+      id: room.id,
+      name: room.name,
+      teacher: room.teacher,
+      lessonTitle: 'Rosetta',
+      isRosetta: true,
+      students: room.students.map(({ id, matricula }) => ({ id, matricula })),
+    })),
+  ]
+  res.json({
+    date,
+    currentTime,
+    generatedAt: now.toISOString(),
+    hour: toHourLabel(hour),
+    endHour: toHourLabel(hour + 1),
+    isCurrentHour: date === today && now.getHours() === hour,
+    hours: hours.map(toHourLabel),
+    rooms,
+  })
 }))
 
 app.post('/api/reception/lessons', authenticate, requireRole('reception'), asyncRoute(async (req, res) => {

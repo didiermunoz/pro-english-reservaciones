@@ -1,0 +1,277 @@
+/* Asignación de salones por hora */
+.hourly-page .daily-toolbar select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #17212b;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
+.hourly-pool {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: rgba(239, 246, 255, .97);
+  box-shadow: 0 8px 20px -14px rgba(15, 23, 42, .35);
+  backdrop-filter: blur(6px);
+}
+
+.hourly-pool-heading,
+.hourly-room-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.hourly-pool h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.hourly-count {
+  display: inline-grid;
+  min-width: 28px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  place-items: center;
+  color: #fff;
+  background: #0757c9;
+  font-size: .85rem;
+}
+
+.hourly-pool-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e3a8a;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.hourly-pool-actions button,
+.hourly-place-button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #0757c9;
+  border-radius: 8px;
+  color: #0757c9;
+  background: #fff;
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hourly-pool-actions button:disabled,
+.hourly-place-button:disabled {
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.hourly-pool-empty,
+.hourly-room-empty {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: .88rem;
+}
+
+.hourly-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.hourly-room-students {
+  max-height: none;
+  min-height: 44px;
+  align-content: flex-start;
+}
+
+.hourly-chip {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.hourly-chip-main {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  color: #0f172a;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.hourly-chip-main[draggable="true"] {
+  cursor: grab;
+}
+
+.hourly-chip-main strong {
+  font-size: .95rem;
+  letter-spacing: .02em;
+}
+
+.hourly-chip.is-selected {
+  border-color: #0757c9;
+  background: #0757c9;
+}
+
+.hourly-chip.is-selected .hourly-chip-main {
+  color: #fff;
+}
+
+.hourly-chip.is-warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.hourly-chip-remove {
+  min-width: 34px;
+  border: 0;
+  border-left: 1px solid #e2e8f0;
+  color: #b91c1c;
+  background: #fff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hourly-chip-main:focus-visible,
+.hourly-chip-remove:focus-visible,
+.hourly-pool-actions button:focus-visible,
+.hourly-place-button:focus-visible {
+  outline: 3px solid rgba(7, 87, 201, .45);
+  outline-offset: 2px;
+}
+
+.hourly-room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.hourly-room,
+.hourly-rosetta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #dce4ec;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.hourly-room.is-drop-target {
+  border-color: #0757c9;
+  border-style: dashed;
+  background: #eff6ff;
+}
+
+.hourly-room h2,
+.hourly-rosetta h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.15rem;
+}
+
+.hourly-capacity {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: .85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hourly-capacity.is-full {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.hourly-room-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.hourly-room-fields label {
+  display: grid;
+  gap: 4px;
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.hourly-room-fields input,
+.hourly-room-fields select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #fff;
+  font: inherit;
+  font-size: .9rem;
+}
+
+.hourly-place-button {
+  margin-top: auto;
+  color: #fff;
+  background: #0757c9;
+}
+
+.hourly-place-button:disabled {
+  background: #f1f5f9;
+}
+
+.hourly-rosetta {
+  margin-top: 14px;
+  border-color: #c4b5fd;
+  background: #faf5ff;
+}
+
+.hourly-rosetta p {
+  margin: 0;
+  color: #6d28d9;
+  font-size: .85rem;
+}
+
+@media (max-width: 700px) {
+  .hourly-pool {
+    top: 0;
+    margin: 12px 0;
+  }
+
+  .hourly-chip-list {
+    max-height: 132px;
+  }
+
+  .hourly-room-students {
+    max-height: none;
+  }
+}
